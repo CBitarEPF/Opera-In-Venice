@@ -34,7 +34,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r
 }).addTo(map);
 
 // 3. Chargement des données
-fetch('operas.geojson')
+fetch('sample_operas.geojson')
     .then(function(response) {
         return response.json();
     })
