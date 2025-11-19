@@ -1,0 +1,121 @@
+[
+  {
+    "title": "Demetrio",
+    "composer": "Carlo Pallavicino",
+    "writer": "Giacomo dall' Angelo",
+    "venue": "San Moise",
+    "sorting_date": "1666-01-04"
+  },
+  {
+    "title": "L'Orontea",
+    "composer": "Antonio Cesti",
+    "writer": "Giacinto Andrea Cicognini",
+    "venue": "SS. Giovanni e Paolo",
+    "sorting_date": "1666-01-11"
+  },
+  {
+    "title": "La Zenobia",
+    "composer": "Giovanni Antonio Boretti",
+    "writer": "Matteo Noris",
+    "venue": "San Cassiano",
+    "sorting_date": "1666-01-18"
+  },
+  {
+    "title": "Seleuco",
+    "composer": "Antonio Sartorio",
+    "writer": "Nicolò Minato",
+    "venue": "San Salvatore",
+    "sorting_date": "1666-01-23"
+  },
+  {
+    "title": "Il Tito",
+    "composer": "Antonio Cesti",
+    "writer": "Nicolò Beregan",
+    "venue": "SS. Giovanni e Paolo",
+    "sorting_date": "1666-02-13"
+  },
+  {
+    "title": "Il Giasone",
+    "composer": "Francesco Cavalli",
+    "writer": "Giacinto Andrea Cicognini",
+    "venue": "San Cassiano",
+    "sorting_date": "1666-02-23"
+  },
+  {
+    "title": "L'Aureliano",
+    "composer": "Carlo Pallavicino",
+    "writer": "Count Giacomo dall' Angelo",
+    "venue": "San Moise",
+    "sorting_date": "1666-02-25"
+  },
+  {
+    "title": "Pompeo Magno",
+    "composer": "Francesco Cavalli",
+    "writer": "Nicolò Minato",
+    "venue": "San Salvatore",
+    "sorting_date": "1666-02-27"
+  },
+  {
+    "title": "L'Alciade",
+    "composer": "Pietr' Andrea Ziani",
+    "writer": "Giovanni Faustini",
+    "venue": "SS. Giovanni e Paolo",
+    "sorting_date": "1666-12-14"
+  },
+  {
+    "title": "La Dori, overo Lo schiavo reggio",
+    "composer": "Antonio Cesti",
+    "writer": "Giovanni Filippo Apolloni",
+    "venue": "SS. Giovanni e Paolo",
+    "sorting_date": "1667-01-20"
+  },
+  {
+    "title": "La prosperita d'Elio Seiano",
+    "composer": "Antonio Sartorio",
+    "writer": "Nicolò Minato",
+    "venue": "San Salvatore",
+    "sorting_date": "1667-01-22"
+  },
+  {
+    "title": "L' Alessandro amante",
+    "composer": "Giovanni Antonio Boretti",
+    "writer": "Giacinto Andrea Cicognini, rev. Sebastian Enno",
+    "venue": "San Moise",
+    "sorting_date": "1667-01-30"
+  },
+  {
+    "title": "La caduta d'Elio Seiano",
+    "composer": "Antonio Sartorio",
+    "writer": "Nicolò Minato",
+    "venue": "San Salvatore",
+    "sorting_date": "1667-02-03"
+  },
+  {
+    "title": "I tiranno umiliato d'Amore",
+    "composer": "Carlo Pallavicino",
+    "writer": "Giovanni Faustini, rev. Nicolo Beregan",
+    "venue": "SS. Giovanni e Paolo",
+    "sorting_date": "1667-12-14"
+  },
+  {
+    "title": "Eliogabalo",
+    "composer": "Giovanni Antonio Boretti",
+    "writer": "Aurelio Aureli",
+    "venue": "SS. Giovanni e Paolo",
+    "sorting_date": "1667-12-30"
+  },
+  {
+    "title": "Seleuco",
+    "composer": "Antonio Sartorio",
+    "writer": "Nicolò Minato",
+    "venue": "San Salvatore",
+    "sorting_date": "1668-01-17"
+  },
+  {
+    "title": "L'Artaserse",
+    "composer": "Antonio Cesti",
+    "writer": "Aurelio Aureli",
+    "venue": "SS. Giovanni e Paolo",
+    "sorting_date": "1668-12-30"
+  }
+]

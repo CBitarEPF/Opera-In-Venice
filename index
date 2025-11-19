@@ -20,8 +20,74 @@
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.timeline@1.2.1/dist/leaflet.timeline.min.js"></script>
+
     <script>
-        // Code Leaflet
+        // 1. Initialisation de la carte centrée sur Venise
+var map = L.map('map').setView([45.437, 12.335], 14);
+
+// 2. Fond de carte (Style clair "Voyager" pour lisibilité)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+}).addTo(map);
+
+// 3. Chargement des données
+fetch('operas.geojson')
+    .then(function(response) {
+        return response.json();
+    })
+    .then(function(data) {
+        
+        // A. Configuration de la Timeline (La couche de données)
+        var timeline = L.timeline(data, {
+            // Extraction des dates de début et fin dans ton GeoJSON
+            getInterval: function(feature) {
+                return {
+                    start: feature.properties.start, // Ex: "1660-01-01"
+                    end: feature.properties.end      // Ex: "1660-12-31"
+                };
+            },
+            // Style des points
+            pointToLayer: function(feature, latlng) {
+                return L.circleMarker(latlng, {
+                    radius: 6,
+                    color: "#FFF",
+                    fillColor: "#d62828", // Rouge Opéra
+                    fillOpacity: 0.8,
+                    weight: 1
+                });
+            },
+            // Popup au clic
+            onEachFeature: function(feature, layer) {
+                layer.bindPopup(
+                    `<strong>${feature.properties.titre}</strong><br>
+                     Compositeur: ${feature.properties.compositeur}<br>
+                     Théâtre: ${feature.properties.theatre}<br>
+                     Année: ${feature.properties.annee}`
+                );
+            }
+        });
+
+        // B. Configuration du Contrôleur (Le Slider en bas)
+        var timelineControl = L.timelineSliderControl({
+            formatOutput: function(date) {
+                // Affiche l'année en cours sur le slider
+                return new Date(date).getFullYear();
+            },
+            enablePlayback: true, // Bouton play/pause
+            steps: 1000 // Fluidité du slider
+        });
+
+        // C. Ajout à la carte
+        timeline.addTo(map);
+        timelineControl.addTo(map);
+        timelineControl.addTimelines(timeline);
+    })
+    .catch(function(err) {
+        console.error("Erreur de chargement du GeoJSON : ", err);
+    });
     </script>
 </body>
 </html>
