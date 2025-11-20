@@ -1,58 +1,38 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <title>Opera Venetia: Comparative Analytics</title>
+    <title>Opera Venetia</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Leaflet & noUiSlider CSS -->
+    <!-- CSS Dependencies -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" />
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            /* Couleurs sémantiques pour la comparaison */
-            --color-a: #d62828; /* Rouge Vénitien */
-            --color-b: #219ebc; /* Bleu Lagune */
-            --color-bg-bar: #e0e0e0;
-            
+            --primary: #d62828;      /* Recherche A (Rouge) */
+            --secondary: #219ebc;    /* Recherche B (Bleu) */
             --bg-panel: #ffffff;
-            --text-main: #2b2d42;
             --border: #e9ecef;
-            --bg-map: #f0f0f0;
-        }
-
-        /* Dark Mode Variables */
-        body.dark-mode {
-            --bg-panel: #1a1a1a;
-            --text-main: #e0e0e0;
-            --border: #333;
-            --bg-map: #121212;
-            --color-bg-bar: #333;
+            --text: #333;
         }
 
         body {
             margin: 0; padding: 0;
             font-family: 'Lato', sans-serif;
-            color: var(--text-main);
-            background: var(--bg-panel);
+            color: var(--text);
             display: grid;
             height: 100vh; width: 100vw;
-            grid-template-columns: 340px 1fr; 
-            grid-template-rows: 60px 1fr 140px; /* Header | Map | Timeline */
-            grid-template-areas: 
-                "sidebar header"
-                "sidebar map"
-                "sidebar timeline";
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: 1fr 120px;
+            grid-template-areas: "sidebar map" "sidebar timeline";
             overflow: hidden;
-            transition: background 0.3s, color 0.3s;
         }
 
-        /* --- 1. SIDEBAR (Filtres Comparative) --- */
+        /* --- 1. SIDEBAR --- */
         #sidebar {
             grid-area: sidebar;
             background: var(--bg-panel);
@@ -62,148 +42,141 @@
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
         }
 
-        .sidebar-title {
+        .header-box {
             padding: 20px;
-            font-family: 'Playfair Display', serif;
-            font-size: 20px; border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        
-        /* Onglets A / B */
-        .query-tabs {
-            display: flex; border-bottom: 1px solid var(--border);
-        }
-        .query-tab {
-            flex: 1; padding: 15px; text-align: center; cursor: pointer;
-            font-weight: bold; border-bottom: 3px solid transparent; opacity: 0.6;
-            transition: all 0.2s;
-        }
-        .query-tab:hover { opacity: 1; background: rgba(0,0,0,0.02); }
-        .query-tab.active { opacity: 1; }
-        
-        .tab-a.active { border-bottom-color: var(--color-a); color: var(--color-a); background: rgba(214, 40, 40, 0.05); }
-        .tab-b.active { border-bottom-color: var(--color-b); color: var(--color-b); background: rgba(33, 158, 188, 0.05); }
-
-        /* Zone de filtre */
-        .filters-wrapper { flex-grow: 1; overflow-y: auto; padding: 0 20px; position: relative; }
-        
-        /* Recherche et Facettes */
-        .search-box { margin: 15px 0; }
-        .search-input {
-            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
-            background: var(--bg-panel); color: var(--text-main);
-        }
-
-        .facet-group { margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .facet-header { font-weight: bold; font-size: 12px; text-transform: uppercase; cursor: pointer; display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .facet-content { display: none; max-height: 200px; overflow-y: auto; }
-        .facet-content.open { display: block; }
-        
-        .checkbox-item { display: flex; align-items: center; font-size: 13px; padding: 3px 0; cursor: pointer; }
-        .checkbox-item input { margin-right: 8px; }
-        
-        /* Sidebar Footer */
-        .sidebar-footer { padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
-        .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; text-transform: uppercase; flex: 1; }
-        .btn-reset { background: #e9ecef; color: #333; }
-        
-        /* --- 2. HEADER & MENU --- */
-        #top-header {
-            grid-area: header;
-            background: var(--bg-panel); /* Transparent sur la map ? Non, panel solid */
-            display: flex; align-items: center; padding: 0 20px;
             border-bottom: 1px solid var(--border);
-            justify-content: space-between;
-            z-index: 1500;
+            background: #f8f9fa;
         }
-        .menu-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-main); }
+        .title { font-family: 'Playfair Display'; font-size: 20px; margin: 0; color: var(--primary); }
 
-        /* Modal Menu */
-        #menu-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.6); z-index: 5000; display: none;
-            justify-content: center; align-items: center;
+        /* Toggle Switch Comparaison */
+        .mode-switch {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 15px; padding: 10px; background: #fff;
+            border: 1px solid var(--border); border-radius: 6px;
         }
-        #menu-box {
-            background: var(--bg-panel); padding: 30px; border-radius: 8px; width: 400px; max-width: 90%;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        .switch {
+            position: relative; display: inline-block; width: 40px; height: 20px;
         }
-        #menu-box h2 { margin-top: 0; font-family: 'Playfair Display'; color: var(--text-main); }
-        .menu-option { margin: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-round {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .4s; border-radius: 34px;
+        }
+        .slider-round:before {
+            position: absolute; content: ""; height: 16px; width: 16px;
+            left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider-round { background-color: var(--secondary); }
+        input:checked + .slider-round:before { transform: translateX(20px); }
 
-        /* --- 3. MAP --- */
-        #map { grid-area: map; background: var(--bg-map); }
-        /* Styles Leaflet custom pour les cercles */
-        .marker-a { transition: r 0.5s; mix-blend-mode: multiply; }
-        .marker-b { transition: r 0.5s; mix-blend-mode: multiply; }
+        /* Onglets (Cachés par défaut) */
+        .tabs-container { display: none; border-bottom: 1px solid var(--border); }
+        body.compare-mode .tabs-container { display: flex; } /* Affichés si mode compare */
 
-        /* --- 4. TIMELINE --- */
+        .tab {
+            flex: 1; padding: 10px; text-align: center; cursor: pointer; font-size: 0.9em; font-weight: bold;
+            border-bottom: 3px solid transparent; opacity: 0.6;
+        }
+        .tab:hover { opacity: 1; background: #f1f1f1; }
+        .tab.active { opacity: 1; }
+        .tab-a.active { border-color: var(--primary); color: var(--primary); background: rgba(214,40,40,0.05); }
+        .tab-b.active { border-color: var(--secondary); color: var(--secondary); background: rgba(33,158,188,0.05); }
+
+        /* Filtres */
+        .filters-area { flex-grow: 1; overflow-y: auto; padding: 0 20px; }
+        .facet-group { margin-top: 15px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
+        .facet-title { font-weight: bold; font-size: 0.85em; text-transform: uppercase; color: #666; margin-bottom: 8px; cursor: pointer;}
+        
+        .checkbox-row { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 4px; cursor: pointer; }
+        .checkbox-row:hover { color: #000; }
+        .badge { background: #eee; border-radius: 10px; padding: 2px 6px; font-size: 0.75em; color: #666; }
+
+        /* Footer Sidebar */
+        .sidebar-footer { padding: 15px; border-top: 1px solid var(--border); text-align: center; }
+        .btn-menu { background: none; border: 1px solid #ccc; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 0.8em;}
+
+        /* --- 2. MAP --- */
+        #map { grid-area: map; background: #e5e5e5; }
+        
+        /* Cercles SVG : Blend mode pour voir les superpositions en mode compare */
+        .leaflet-interactive { mix-blend-mode: multiply; transition: r 0.5s ease-out, fill-opacity 0.3s; }
+
+        /* --- 3. TIMELINE --- */
         #timeline-panel {
             grid-area: timeline;
-            background: var(--bg-panel);
-            border-top: 1px solid var(--border);
-            padding: 10px 30px;
+            background: #fff;
+            border-top: 1px solid #ddd;
+            padding: 5px 30px;
             display: flex; flex-direction: column; justify-content: center;
+            position: relative;
+            z-index: 1000;
         }
-        
-        .timeline-controls { display: flex; align-items: center; margin-bottom: 5px; }
+
+        /* Contrôles Player */
+        .controls-row { display: flex; align-items: center; margin-bottom: 5px; font-size: 0.9em; color: #555; }
         .play-btn {
-            width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--text-main);
-            background: none; color: var(--text-main); cursor: pointer; margin-right: 15px;
+            border: 2px solid var(--primary); background: transparent; color: var(--primary);
+            width: 30px; height: 30px; border-radius: 50%; cursor: pointer; margin-right: 15px;
             display: flex; justify-content: center; align-items: center;
         }
-        .play-btn:hover { background: var(--text-main); color: var(--bg-panel); }
+        .play-btn:hover { background: var(--primary); color: #fff; }
 
-        /* Histogramme Stacked */
-        #histogram {
-            width: 100%; height: 50px; display: flex; align-items: flex-end; 
-            margin-bottom: -10px; opacity: 0.9; pointer-events: none;
-        }
-        .hist-col { flex: 1; margin: 0 1px; display: flex; flex-direction: column-reverse; height: 100%; position: relative; }
-        .hist-bg { position: absolute; bottom: 0; width: 100%; background: var(--color-bg-bar); z-index: 0; transition: height 0.3s; }
-        /* Barres A et B superposées (absolues ou flex ?) -> Flex column reverse pour empiler */
-        .hist-bar-a { width: 100%; background: var(--color-a); opacity: 0.8; transition: height 0.3s; z-index: 1; }
-        .hist-bar-b { width: 100%; background: var(--color-b); opacity: 0.8; transition: height 0.3s; z-index: 1; }
+        /* Histogramme */
+        #histogram { height: 40px; width: 100%; display: flex; align-items: flex-end; margin-bottom: -12px; pointer-events: none; }
+        .hist-col { flex: 1; margin: 0 1px; position: relative; height: 100%; display: flex; flex-direction: column-reverse; }
+        .bar-bg { position: absolute; bottom:0; width:100%; background:#e0e0e0; z-index:0; } /* Total */
+        .bar-a { width: 100%; background: var(--primary); opacity: 0.7; z-index: 2; transition: height 0.3s; }
+        .bar-b { width: 100%; background: var(--secondary); opacity: 0.7; z-index: 1; transition: height 0.3s; display: none; }
+        body.compare-mode .bar-b { display: block; } /* Afficher barre bleue seulement en mode compare */
 
-        /* Slider Styles */
-        #time-slider { height: 6px; margin-top: 15px; border: none; background: transparent; }
-        .noUi-connect { background: #888; }
-        .noUi-handle { border-radius: 50%; width: 16px; height: 16px; border: 2px solid #fff; background: #555; box-shadow: none; }
-        
+        /* Slider */
+        #time-slider { height: 8px; border: none; background: transparent; }
+        .noUi-connect { background: #888; opacity: 0.4; }
+        .noUi-handle { width: 16px; height: 16px; border-radius: 50%; background: #444; border: 2px solid #fff; box-shadow: none; top: -5px; cursor: grab; }
+
     </style>
 </head>
 <body>
 
-    <!-- TOP HEADER -->
-    <div id="top-header">
-        <div style="font-weight:bold; font-family:'Playfair Display'">
-            OPERA VENETIA <small style="font-weight:normal; color:#888;">| 1660-1760</small>
-        </div>
-        <button class="menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
-    </div>
-
     <!-- SIDEBAR -->
     <div id="sidebar">
-        <div class="query-tabs">
-            <div class="query-tab tab-a active" onclick="switchTab('A')">
-                <i class="fas fa-circle" style="font-size:8px;"></i> Recherche A
-            </div>
-            <div class="query-tab tab-b" onclick="switchTab('B')">
-                <i class="fas fa-circle" style="font-size:8px;"></i> Recherche B
+        <div class="header-box">
+            <h1 class="title">Opera Venetia</h1>
+            
+            <!-- Toggle Mode -->
+            <div class="mode-switch">
+                <span style="font-size:0.85em; font-weight:bold;">Mode Comparaison</span>
+                <label class="switch">
+                    <input type="checkbox" id="modeToggle" onchange="toggleMode()">
+                    <span class="slider-round"></span>
+                </label>
             </div>
         </div>
 
-        <div class="filters-wrapper">
-            <div class="search-box">
-                <input type="text" id="searchInput" class="search-input" placeholder="Filtrer (Titre, Théâtre)..." onkeyup="handleSearch()">
+        <!-- Onglets (Visibles seulement en mode compare) -->
+        <div class="tabs-container">
+            <div class="tab tab-a active" onclick="switchTab('A')">Recherche A</div>
+            <div class="tab tab-b" onclick="switchTab('B')">Recherche B</div>
+        </div>
+
+        <!-- Zone des filtres -->
+        <div class="filters-area">
+            <!-- Recherche Texte -->
+            <div style="margin: 15px 0;">
+                <input type="text" id="searchInput" placeholder="Rechercher titre, théâtre..." 
+                       style="width:100%; padding:8px; box-sizing:border-box; border:1px solid #ccc; border-radius:4px;"
+                       onkeyup="handleSearch()">
             </div>
             
-            <!-- Facettes injectées ici -->
-            <div id="facets-container"></div>
+            <!-- Les facettes seront injectées ici par JS -->
+            <div id="facets-container">Loading data...</div>
         </div>
 
+        <!-- Footer / Menu -->
         <div class="sidebar-footer">
-            <button class="btn btn-reset" onclick="resetActiveQuery()">Reset Sélection</button>
+            <button class="btn-menu" onclick="openMenu()"><i class="fas fa-info-circle"></i> Crédits & Options</button>
+            <button class="btn-menu" onclick="resetCurrent()">Reset</button>
         </div>
     </div>
 
@@ -212,14 +185,14 @@
 
     <!-- TIMELINE -->
     <div id="timeline-panel">
-        <div class="timeline-controls">
+        <div class="controls-row">
             <button class="play-btn" onclick="togglePlay()"><i id="play-icon" class="fas fa-play"></i></button>
-            <span id="date-display" style="font-weight:bold; font-size:1.1em; margin-right: 20px;">1660 - 1760</span>
+            <span id="date-display" style="font-weight:bold; font-size:1.1em; margin-right:20px;">1660 - 1760</span>
             
-            <!-- Légende dynamique -->
-            <div style="display:flex; gap:15px; font-size:0.85em;">
-                <span style="color:var(--color-a)"><i class="fas fa-circle"></i> <span id="count-a">0</span> (A)</span>
-                <span style="color:var(--color-b)"><i class="fas fa-circle"></i> <span id="count-b">0</span> (B)</span>
+            <!-- Stats dynamiques -->
+            <div id="stats-legend" style="font-size:0.85em;">
+                <span style="color:var(--primary)">● <span id="count-a">0</span> opéras</span>
+                <span id="legend-b" style="color:var(--secondary); margin-left:10px; display:none;">● <span id="count-b">0</span> opéras</span>
             </div>
         </div>
 
@@ -227,435 +200,374 @@
         <div id="time-slider"></div>
     </div>
 
-    <!-- MENU MODAL -->
-    <div id="menu-overlay" onclick="if(event.target==this) toggleMenu()">
-        <div id="menu-box">
-            <h2>Paramètres & Infos</h2>
-            
-            <div class="menu-option">
-                <span>Mode Sombre</span>
-                <input type="checkbox" onchange="toggleDarkMode()">
-            </div>
-            
-            <div class="menu-option">
-                <span>Fond de carte</span>
-                <select id="mapStyleSelect" onchange="changeMapStyle(this.value)" style="padding:5px;">
-                    <option value="voyager">Voyager (Clair)</option>
-                    <option value="darkmatter">Dark Matter (Sombre)</option>
-                    <option value="positron">Positron (Minimal)</option>
-                </select>
-            </div>
-
-            <hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">
-            
-            <div>
-                <strong>Crédits</strong><br>
-                <small>Développement: Assistant IA & [Votre Nom]<br>Données: Sample Dataset Venice</small>
-            </div>
-            <br>
-            <div>
-                <strong>Bibliographie</strong>
-                <ul style="font-size:0.85em; padding-left:20px; margin-top:5px;">
-                    <li>Alm, I. (1993). <em>Catalog of Venetian Librettos...</em></li>
-                    <li>Selfridge-Field, E. (2007). <em>A New Chronology of Venetian Opera...</em></li>
-                </ul>
-            </div>
-
-            <button class="btn btn-reset" style="margin-top:20px; width:100%;" onclick="toggleMenu()">Fermer</button>
-        </div>
-    </div>
-
     <!-- SCRIPTS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
 
     <script>
-        // --- 1. ETAT GLOBAL (DUAL QUERY) ---
+        // --- 1. STATE MANAGEMENT ---
         const CONFIG = { minYear: 1660, maxYear: 1760 };
         
-        // Structure complexe pour gérer deux recherches indépendantes
         let appState = {
-            data: [],
-            activeTab: 'A', // 'A' ou 'B'
+            mode: 'simple', // 'simple' ou 'compare'
+            activeTab: 'A', // Toujours 'A' en mode simple
             
-            // Paramètres de recherche pour chaque onglet
+            // Données de recherche pour A et B
             queries: {
                 A: { filters: {}, search: "" },
                 B: { filters: {}, search: "" }
             },
             
-            // Résultats calculés (pour éviter de recalculer tout le temps)
-            results: {
-                A: [], // Liste filtrée A
-                B: []  // Liste filtrée B
-            },
+            // Résultats filtrés (calculés à la volée)
+            results: { A: [], B: [] },
             
             timeRange: [1660, 1760],
+            data: [], // GeoJSON raw data
             isPlaying: false
         };
 
-        let map, slider, playInterval;
-        let layerGroupA = L.layerGroup();
-        let layerGroupB = L.layerGroup();
-        let tileLayer;
+        let map, layerGroupA, layerGroupB, slider, playInterval;
 
         // --- 2. INITIALISATION ---
-        fetch('sample_operas.geojson')
-            .then(res => res.json())
-            .then(geoJson => {
-                appState.data = geoJson.features;
-                initMap();
-                initUI();
-                refreshAll(); // Premier calcul
-            });
-
-        function initMap() {
-            map = L.map('map', { zoomControl: false }).setView([45.436, 12.334], 14);
+        document.addEventListener("DOMContentLoaded", () => {
+            // A. Carte
+            map = L.map('map', { zoomControl: false }).setView([45.437, 12.335], 14);
             L.control.zoom({ position: 'topright' }).addTo(map);
-            
-            changeMapStyle('voyager'); // Default
-            
-            layerGroupA.addTo(map);
-            layerGroupB.addTo(map);
-        }
-
-        function changeMapStyle(style) {
-            if(tileLayer) map.removeLayer(tileLayer);
-            const url = `https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`;
-            tileLayer = L.tileLayer(url, {
-                attribution: '&copy; CARTO', maxZoom: 20
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO'
             }).addTo(map);
-            
-            // S'assurer que les points restent au-dessus
-            layerGroupA.bringToFront();
-            layerGroupB.bringToFront();
-        }
 
-        // --- 3. LOGIQUE DE FILTRAGE (MOTEUR) ---
-        
-        // Fonction générique qui filtre les données selon un config de requête
-        function filterData(queryConfig, startYear, endYear) {
-            return appState.data.filter(f => {
-                const p = f.properties;
-                
-                // 1. Temps
-                if (p.annee < startYear || p.annee > endYear) return false;
+            layerGroupA = L.layerGroup().addTo(map);
+            layerGroupB = L.layerGroup().addTo(map); // Vide en mode simple
 
-                // 2. Recherche Texte
-                if (queryConfig.search) {
-                    const str = `${p.titre} ${p.compositeur} ${p.theatre} ${p.librettiste}`.toLowerCase();
-                    if (!str.includes(queryConfig.search)) return false;
-                }
-
-                // 3. Facettes (AND entre catégories, OR dans la catégorie)
-                for (const [key, set] of Object.entries(queryConfig.filters)) {
-                    if (set.size > 0 && !set.has(p[key])) return false;
-                }
-                
-                return true;
-            });
-        }
-
-        // Met à jour TOUT (Carte, Histo, Compteurs)
-        function refreshAll() {
-            const [start, end] = appState.timeRange;
-            
-            // Calculer A
-            appState.results.A = filterData(appState.queries.A, start, end);
-            // Calculer B
-            appState.results.B = filterData(appState.queries.B, start, end);
-
-            updateMap();
-            updateHistogram();
-            updateCounters();
-            updateFacetsUI(); // Met à jour les checkboxes pour refléter l'onglet actif
-        }
-
-        // --- 4. VISUALISATION CARTE (COMPARATIVE) ---
-        function updateMap() {
-            layerGroupA.clearLayers();
-            layerGroupB.clearLayers();
-
-            // Helper pour dessiner un set
-            function drawSet(dataSet, layerGroup, color) {
-                // Aggrégation par théâtre
-                const venues = {};
-                dataSet.forEach(f => {
-                    const t = f.properties.theatre;
-                    if(!venues[t]) venues[t] = { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], count: 0, list: [] };
-                    venues[t].count++;
-                    venues[t].list.push(f.properties);
+            // B. Chargement Données
+            fetch('sample_operas.geojson')
+                .then(r => r.json())
+                .then(data => {
+                    appState.data = data.features;
+                    initInterface(); // Une fois les données chargées
+                    updateDashboard(); // Premier rendu
+                })
+                .catch(e => {
+                    console.error("Erreur GeoJSON:", e);
+                    document.getElementById('facets-container').innerHTML = "Erreur de chargement des données.";
                 });
+        });
 
-                Object.keys(venues).forEach(k => {
-                    const v = venues[k];
-                    const radius = Math.sqrt(v.count) * 5 + 2; // Taille
-                    
-                    const marker = L.circleMarker([v.lat, v.lng], {
-                        radius: radius,
-                        color: color,      // Bordure
-                        weight: 2,
-                        fillColor: color,  // Fond
-                        fillOpacity: 0.5,  // Transparence cruciale pour la superposition A/B
-                        className: color === '#d62828' ? 'marker-a' : 'marker-b'
-                    });
-                    
-                    // Popup simple
-                    let popup = `<b>${k}</b><br>${v.count} résultats<br><span style="font-size:0.8em; color:#666">Ex: ${v.list[0].titre}</span>`;
-                    marker.bindPopup(popup);
-                    layerGroup.addTo(map);
+        function initInterface() {
+            // 1. Slider
+            const sliderEl = document.getElementById('time-slider');
+            if(sliderEl) {
+                slider = noUiSlider.create(sliderEl, {
+                    start: [1660, 1760],
+                    connect: true,
+                    range: { min: 1660, max: 1760 },
+                    step: 1,
+                    animate: false
+                });
+                
+                slider.on('update', (values) => {
+                    const s = Math.round(values[0]);
+                    const e = Math.round(values[1]);
+                    appState.timeRange = [s, e];
+                    document.getElementById('date-display').innerText = (s === e) ? s : `${s} - ${e}`;
+                    updateDashboard();
                 });
             }
 
-            // Si l'onglet A est actif ou a des données
-            drawSet(appState.results.A, layerGroupA, getComputedStyle(document.documentElement).getPropertyValue('--color-a').trim());
-            // Si l'onglet B est actif ou a des données
-            drawSet(appState.results.B, layerGroupB, getComputedStyle(document.documentElement).getPropertyValue('--color-b').trim());
+            // 2. Histogramme (Structure DOM)
+            initHistogramDOM();
+
+            // 3. Facettes (Interface checkboxes)
+            renderFacets();
         }
 
-        // --- 5. HISTOGRAMME PROPORTIONNEL ---
-        function updateHistogram() {
-            const container = document.getElementById('histogram');
-            // Si premier passage, construire la structure DOM
-            if (container.childElementCount === 0) {
-                for (let y = CONFIG.minYear; y <= CONFIG.maxYear; y++) {
-                    const col = document.createElement('div');
-                    col.className = 'hist-col';
-                    col.id = `hist-${y}`;
-                    
-                    // Fond (Total)
-                    const bg = document.createElement('div');
-                    bg.className = 'hist-bg';
-                    col.appendChild(bg);
-                    
-                    // Barre A
-                    const barA = document.createElement('div');
-                    barA.className = 'hist-bar-a';
-                    col.appendChild(barA);
+        // --- 3. LOGIQUE MODES & ONGLETS ---
 
-                    // Barre B
-                    const barB = document.createElement('div');
-                    barB.className = 'hist-bar-b';
-                    col.appendChild(barB);
-
-                    container.appendChild(col);
-                }
-            }
-
-            // 1. Calculer le total global par année (Background) pour échelle
-            const globalCounts = {};
-            let maxGlobal = 0;
-            appState.data.forEach(f => {
-                const y = f.properties.annee;
-                globalCounts[y] = (globalCounts[y] || 0) + 1;
-                if(globalCounts[y] > maxGlobal) maxGlobal = globalCounts[y];
-            });
-
-            // 2. Calculer les comptes A et B (indépendamment du slider, pour voir la distribution complète)
-            // ATTENTION: L'histogramme doit montrer où se trouvent les données filtrées sur TOUTE la période,
-            // pas seulement dans la fenêtre du slider. Donc on filtre avec minYear/maxYear.
-            const fullSetA = filterData(appState.queries.A, CONFIG.minYear, CONFIG.maxYear);
-            const fullSetB = filterData(appState.queries.B, CONFIG.minYear, CONFIG.maxYear);
+        function toggleMode() {
+            const isCompare = document.getElementById('modeToggle').checked;
+            appState.mode = isCompare ? 'compare' : 'simple';
             
-            const countsA = {}, countsB = {};
-            fullSetA.forEach(f => countsA[f.properties.annee] = (countsA[f.properties.annee] || 0) + 1);
-            fullSetB.forEach(f => countsB[f.properties.annee] = (countsB[f.properties.annee] || 0) + 1);
-
-            // 3. Mettre à jour le DOM
-            for (let y = CONFIG.minYear; y <= CONFIG.maxYear; y++) {
-                const col = document.getElementById(`hist-${y}`);
-                const total = globalCounts[y] || 0;
-                const valA = countsA[y] || 0;
-                const valB = countsB[y] || 0;
-
-                // Hauteurs en %
-                const hTotal = maxGlobal > 0 ? (total / maxGlobal * 100) : 0;
-                // A et B sont empilés ou relatifs au total ?
-                // Demandé: "Montre la proportion des résultats".
-                // On va dire: Hauteur barre couleur = % du résultat par rapport au Max Global
-                const hA = maxGlobal > 0 ? (valA / maxGlobal * 100) : 0;
-                const hB = maxGlobal > 0 ? (valB / maxGlobal * 100) : 0;
-
-                col.querySelector('.hist-bg').style.height = `${hTotal}%`;
-                col.querySelector('.hist-bar-a').style.height = `${hA}%`;
-                col.querySelector('.hist-bar-b').style.height = `${hB}%`;
-                
-                // Opacité pour indiquer la sélection du slider
-                const inRange = (y >= appState.timeRange[0] && y <= appState.timeRange[1]);
-                col.style.opacity = inRange ? 1 : 0.3;
+            // Mise à jour CSS du body
+            if(isCompare) {
+                document.body.classList.add('compare-mode');
+                document.getElementById('legend-b').style.display = 'inline';
+            } else {
+                document.body.classList.remove('compare-mode');
+                document.getElementById('legend-b').style.display = 'none';
+                switchTab('A'); // Force retour onglet A
             }
-        }
 
-        // --- 6. INTERFACE UTILISATEUR (UI) ---
+            updateDashboard();
+        }
 
         function switchTab(tab) {
             appState.activeTab = tab;
-            document.querySelectorAll('.query-tab').forEach(el => el.classList.remove('active'));
+            
+            // UI Onglets
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab-${tab.toLowerCase()}`).classList.add('active');
             
-            // Restaurer les inputs UI pour correspondre à la query active
-            document.getElementById('searchInput').value = appState.queries[tab].search;
-            updateFacetsUI();
+            // Restaurer l'état des inputs (Search + Checkboxes) pour cet onglet
+            const q = appState.queries[tab];
+            document.getElementById('searchInput').value = q.search;
+            
+            renderFacets(); // Redessine les cases cochées selon l'onglet
         }
 
-        function updateCounters() {
+        // --- 4. MOTEUR DE FILTRE & RENDU ---
+
+        function updateDashboard() {
+            // 1. Filtrer A
+            appState.results.A = filterData(appState.queries.A);
+            
+            // 2. Filtrer B (Seulement si nécessaire)
+            if (appState.mode === 'compare') {
+                appState.results.B = filterData(appState.queries.B);
+            } else {
+                appState.results.B = []; // Vide
+            }
+
+            // 3. Mettre à jour la carte
+            drawMap();
+
+            // 4. Mettre à jour l'histogramme
+            drawHistogram();
+
+            // 5. Compteurs textuels
             document.getElementById('count-a').innerText = appState.results.A.length;
             document.getElementById('count-b').innerText = appState.results.B.length;
         }
 
-        // Facettes
+        function filterData(query) {
+            const [start, end] = appState.timeRange;
+            
+            return appState.data.filter(f => {
+                const p = f.properties;
+                // Date
+                if (p.annee < start || p.annee > end) return false;
+                
+                // Recherche texte
+                if (query.search) {
+                    const txt = (p.titre + " " + p.theatre + " " + p.compositeur).toLowerCase();
+                    if (!txt.includes(query.search)) return false;
+                }
+
+                // Checkboxes (Facettes)
+                for (const [key, set] of Object.entries(query.filters)) {
+                    if (set.size > 0 && !set.has(p[key])) return false;
+                }
+                return true;
+            });
+        }
+
+        // --- 5. CARTE (POINTS PROPORTIONNELS) ---
+        function drawMap() {
+            layerGroupA.clearLayers();
+            layerGroupB.clearLayers();
+
+            // Fonction helper de dessin
+            const renderSet = (dataset, group, color) => {
+                // Agréger par théâtre
+                const venues = {};
+                dataset.forEach(f => {
+                    const t = f.properties.theatre;
+                    if(!venues[t]) venues[t] = { lat:f.geometry.coordinates[1], lng:f.geometry.coordinates[0], count:0, list:[] };
+                    venues[t].count++;
+                    venues[t].list.push(f.properties.titre);
+                });
+
+                Object.keys(venues).forEach(k => {
+                    const v = venues[k];
+                    const radius = Math.sqrt(v.count) * 6 + 3; // Taille
+                    
+                    L.circleMarker([v.lat, v.lng], {
+                        radius: radius,
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.6,
+                        weight: 1
+                    }).bindPopup(`<b>${k}</b><br>${v.count} résultats<br><small>${v.list.slice(0,3).join(', ')}...</small>`)
+                      .addTo(group);
+                });
+            };
+
+            // Dessin
+            if (appState.results.A.length > 0) renderSet(appState.results.A, layerGroupA, '#d62828'); // Rouge
+            if (appState.results.B.length > 0) renderSet(appState.results.B, layerGroupB, '#219ebc'); // Bleu
+        }
+
+        // --- 6. FACETTES (UI) ---
         const FACETS_CONFIG = [
             { key: 'theatre', label: 'Théâtres' },
             { key: 'compositeur', label: 'Compositeurs' },
             { key: 'librettiste', label: 'Librettistes' }
         ];
 
-        function initUI() {
-            // Générer HTML Facettes (Vide au début)
+        function renderFacets() {
             const container = document.getElementById('facets-container');
-            FACETS_CONFIG.forEach(conf => {
-                const div = document.createElement('div');
-                div.className = 'facet-group';
-                div.innerHTML = `
-                    <div class="facet-header" onclick="toggleFacet(this)">${conf.label} <i class="fas fa-chevron-down"></i></div>
-                    <div class="facet-content" id="facet-${conf.key}"></div>
-                `;
-                container.appendChild(div);
-            });
-
-            initSlider();
-            updateFacetsUI(); // Remplir checkboxes
-        }
-
-        function toggleFacet(header) {
-            header.nextElementSibling.classList.toggle('open');
-        }
-
-        // Re-génère les checkboxes en fonction des données globales mais coche selon Active Query
-        function updateFacetsUI() {
-            const activeQuery = appState.queries[appState.activeTab];
+            container.innerHTML = ''; // Clear
+            
+            const currentQuery = appState.queries[appState.activeTab];
 
             FACETS_CONFIG.forEach(conf => {
-                const container = document.getElementById(`facet-${conf.key}`);
-                // On ne vide pas tout pour ne pas perdre le scroll, idéalement, mais simple ici:
-                container.innerHTML = '';
-
-                // Compter les occurrences globales
+                // Calcul des comptes globaux (pour info)
                 const counts = {};
                 appState.data.forEach(f => {
-                    const v = f.properties[conf.key];
-                    if(v) counts[v] = (counts[v] || 0) + 1;
+                    const val = f.properties[conf.key];
+                    if(val) counts[val] = (counts[val] || 0) + 1;
                 });
 
+                // HTML Group
+                const group = document.createElement('div');
+                group.className = 'facet-group';
+                group.innerHTML = `<div class="facet-title">${conf.label}</div>`;
+
                 Object.keys(counts).sort().forEach(val => {
-                    const div = document.createElement('label');
-                    div.className = 'checkbox-item';
+                    const isChecked = currentQuery.filters[conf.key] && currentQuery.filters[conf.key].has(val);
                     
-                    // Est-ce coché dans la query active ?
-                    const isChecked = activeQuery.filters[conf.key] && activeQuery.filters[conf.key].has(val);
-                    
-                    div.innerHTML = `
-                        <input type="checkbox" value="${val}" ${isChecked ? 'checked' : ''} 
-                               onchange="toggleFilter('${conf.key}', '${val}')">
-                        ${val} <span style="margin-left:auto; color:#999; font-size:0.8em;">${counts[val]}</span>
+                    const row = document.createElement('div');
+                    row.className = 'checkbox-row';
+                    row.innerHTML = `
+                        <label style="cursor:pointer; display:flex; align-items:center; width:100%">
+                            <input type="checkbox" ${isChecked?'checked':''} style="margin-right:8px;">
+                            ${val}
+                        </label>
+                        <span class="badge">${counts[val]}</span>
                     `;
-                    container.appendChild(div);
+                    
+                    // Event Listener
+                    row.querySelector('input').onchange = (e) => {
+                        toggleFilter(conf.key, val, e.target.checked);
+                    };
+                    
+                    group.appendChild(row);
                 });
+                container.appendChild(group);
             });
         }
 
-        function toggleFilter(category, value) {
+        function toggleFilter(key, val, checked) {
             const q = appState.queries[appState.activeTab];
-            if (!q.filters[category]) q.filters[category] = new Set();
+            if(!q.filters[key]) q.filters[key] = new Set();
             
-            if (q.filters[category].has(value)) {
-                q.filters[category].delete(value);
-            } else {
-                q.filters[category].add(value);
-            }
-            refreshAll();
+            if(checked) q.filters[key].add(val);
+            else q.filters[key].delete(val);
+            
+            updateDashboard();
         }
 
         function handleSearch() {
             const val = document.getElementById('searchInput').value.toLowerCase();
             appState.queries[appState.activeTab].search = val;
-            refreshAll();
+            updateDashboard();
         }
 
-        function resetActiveQuery() {
+        function resetCurrent() {
             appState.queries[appState.activeTab] = { filters: {}, search: "" };
-            document.getElementById('searchInput').value = "";
-            refreshAll();
+            switchTab(appState.activeTab); // Re-render UI
+            updateDashboard();
         }
 
-        // --- 7. SLIDER & PLAYBACK INTELLIGENT ---
-        
-        function initSlider() {
-            slider = noUiSlider.create(document.getElementById('time-slider'), {
-                start: [1660, 1760],
-                connect: true,
-                range: { min: 1660, max: 1760 },
-                step: 1,
-                animate: false
+        // --- 7. HISTOGRAMME & PLAYER ---
+
+        function initHistogramDOM() {
+            const container = document.getElementById('histogram');
+            // Créer 101 barres (1660-1760)
+            for(let y = CONFIG.minYear; y <= CONFIG.maxYear; y++) {
+                const col = document.createElement('div');
+                col.className = 'hist-col';
+                col.id = `hist-${y}`;
+                col.innerHTML = `<div class="bar-bg"></div><div class="bar-a"></div><div class="bar-b"></div>`;
+                container.appendChild(col);
+            }
+        }
+
+        function drawHistogram() {
+            // 1. Calculer max global pour échelle
+            const globalCounts = {};
+            let maxVal = 0;
+            appState.data.forEach(f => {
+                globalCounts[f.properties.annee] = (globalCounts[f.properties.annee]||0)+1;
+                if(globalCounts[f.properties.annee] > maxVal) maxVal = globalCounts[f.properties.annee];
             });
 
-            slider.on('update', (values) => {
-                const s = Math.round(values[0]);
-                const e = Math.round(values[1]);
-                appState.timeRange = [s, e];
-                document.getElementById('date-display').innerText = (s === e) ? s : `${s} - ${e}`;
-                refreshAll(); // Update map/histo visualization
-            });
+            // 2. Comptes filtrés (pour tout le siècle, pas juste la sélection slider)
+            // Attention: pour l'histo, on veut voir où sont les données sur TOUT le temps, 
+            // donc on utilise une version temporaire de filterData sans restriction temps
+            const getCounts = (dataset) => {
+                const c = {};
+                dataset.forEach(f => c[f.properties.annee] = (c[f.properties.annee]||0)+1);
+                return c;
+            };
+            
+            // On filtre par facettes/search mais sur 1660-1760
+            const fullRangeQuery = (q) => {
+                return appState.data.filter(f => {
+                    // Copie de logic filtre sans date check
+                    if (q.search) {
+                        const txt = (f.properties.titre + " " + f.properties.theatre).toLowerCase();
+                        if (!txt.includes(q.search)) return false;
+                    }
+                    for (const [key, set] of Object.entries(q.filters)) {
+                        if (set.size > 0 && !set.has(f.properties[key])) return false;
+                    }
+                    return true;
+                });
+            };
+
+            const dataA = fullRangeQuery(appState.queries.A);
+            const countsA = getCounts(dataA);
+            
+            let countsB = {};
+            if(appState.mode === 'compare') {
+                const dataB = fullRangeQuery(appState.queries.B);
+                countsB = getCounts(dataB);
+            }
+
+            // 3. Rendu DOM
+            for(let y = CONFIG.minYear; y <= CONFIG.maxYear; y++) {
+                const col = document.getElementById(`hist-${y}`);
+                const total = globalCounts[y] || 0;
+                const valA = countsA[y] || 0;
+                const valB = countsB[y] || 0;
+
+                const hTotal = maxVal > 0 ? (total/maxVal*100) : 0;
+                const hA = maxVal > 0 ? (valA/maxVal*100) : 0;
+                const hB = maxVal > 0 ? (valB/maxVal*100) : 0;
+
+                col.querySelector('.bar-bg').style.height = hTotal + '%';
+                col.querySelector('.bar-a').style.height = hA + '%';
+                col.querySelector('.bar-b').style.height = hB + '%';
+
+                // Opacité (Selection Slider)
+                const inRange = (y >= appState.timeRange[0] && y <= appState.timeRange[1]);
+                col.style.opacity = inRange ? 1 : 0.3;
+            }
         }
 
         function togglePlay() {
             appState.isPlaying = !appState.isPlaying;
-            const icon = document.getElementById('play-icon');
-            icon.className = appState.isPlaying ? "fas fa-pause" : "fas fa-play";
+            document.getElementById('play-icon').className = appState.isPlaying ? "fas fa-pause" : "fas fa-play";
             
-            if (appState.isPlaying) startSmartPlayback();
-            else clearInterval(playInterval);
+            if(appState.isPlaying) {
+                const duration = appState.timeRange[1] - appState.timeRange[0];
+                let cursor = appState.timeRange[0];
+                
+                playInterval = setInterval(() => {
+                    cursor++;
+                    if(cursor + duration > CONFIG.maxYear) {
+                        togglePlay(); 
+                        return;
+                    }
+                    slider.set([cursor, cursor + duration]);
+                }, 800);
+            } else {
+                clearInterval(playInterval);
+            }
         }
 
-        function startSmartPlayback() {
-            // 1. Calculer la durée actuelle de la fenêtre sélectionnée
-            const currentStart = parseInt(slider.get()[0]);
-            const currentEnd = parseInt(slider.get()[1]);
-            const duration = currentEnd - currentStart; // Ex: 10 ans
-
-            let cursor = currentStart;
-
-            playInterval = setInterval(() => {
-                // Avancer de 1 an
-                cursor++; 
-                let nextEnd = cursor + duration;
-
-                // Si on touche la fin
-                if (nextEnd > CONFIG.maxYear) {
-                    // Option: Boucler ou Arrêter. Ici Arrêter.
-                    togglePlay(); 
-                    return;
-                }
-
-                slider.set([cursor, nextEnd]);
-            }, 800); // Vitesse de lecture
-        }
-
-        // --- 8. MENU & SETTINGS ---
-        function toggleMenu() {
-            const el = document.getElementById('menu-overlay');
-            el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
-        }
-
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            // Besoin de redessiner la map ? Leaflet gère mal le CSS pur pour les tiles
-            // On bascule sur DarkMatter si mode sombre actif, sinon Voyager
-            const isDark = document.body.classList.contains('dark-mode');
-            const style = isDark ? 'darkmatter' : 'voyager';
-            document.getElementById('mapStyleSelect').value = style;
-            changeMapStyle(style);
-        }
+        function openMenu() { alert("Credits: Digital Humanities Lab\nSource: Sample Operas GeoJSON"); }
 
     </script>
 </body>
