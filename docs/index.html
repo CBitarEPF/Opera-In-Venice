@@ -1,160 +1,197 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <title>Opera in Venice: Analytics Dashboard</title>
+    <title>Opera in Venice: Digital Humanities Dashboard</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <!-- noUiSlider CSS (Pour le slider de plage temporelle) -->
+    <!-- noUiSlider CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" />
-    
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Google Fonts: Playfair Display (Titres) & Lato (Corps) -->
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --primary-color: #d62828;
-            --secondary-color: #003049;
-            --bg-light: #f8f9fa;
-            --border-color: #dee2e6;
+            --primary: #9e2a2b;      /* Rouge Vénitien */
+            --secondary: #335c67;    /* Bleu Lagune Profond */
+            --gold: #e09f3e;         /* Or */
+            --bg-panel: #ffffff;
+            --bg-map: #f0f0f0;
+            --text-main: #2b2d42;
+            --border: #e9ecef;
         }
 
         body {
             margin: 0; padding: 0;
-            font-family: 'Roboto', sans-serif;
+            font-family: 'Lato', sans-serif;
+            color: var(--text-main);
             display: grid;
             height: 100vh;
             width: 100vw;
-            /* Layout: Sidebar (gauche), Carte (haut droite), Timeline (bas droite) */
-            grid-template-columns: 300px 1fr; 
-            grid-template-rows: 1fr 120px;
+            /* Sidebar | Map | Timeline (en bas) */
+            grid-template-columns: 320px 1fr; 
+            grid-template-rows: 1fr 140px;
             grid-template-areas: 
                 "sidebar map"
                 "sidebar timeline";
             overflow: hidden;
         }
 
-        /* 1. SIDEBAR (FILTRES À FACETTES) */
+        /* --- 1. SIDEBAR ÉLÉGANTE --- */
         #sidebar {
             grid-area: sidebar;
-            background: #fff;
-            border-right: 1px solid var(--border-color);
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.05);
+            z-index: 2000;
         }
 
-        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); background: var(--bg-light); }
-        .sidebar-header h1 { font-size: 18px; margin: 0; color: var(--secondary-color); }
-        .sidebar-header p { font-size: 12px; color: #666; margin: 5px 0 0 0; }
-
-        .filters-container { padding: 15px; overflow-y: auto; flex-grow: 1; }
-
-        /* Style des catégories de filtres */
-        .facet-group { margin-bottom: 20px; }
-        .facet-title { 
-            font-weight: 700; font-size: 13px; text-transform: uppercase; 
-            color: var(--secondary-color); margin-bottom: 10px; display: block;
-            border-bottom: 2px solid #eee; padding-bottom: 4px;
+        .sidebar-header {
+            padding: 25px 20px;
+            background: #fffbf0; /* Papier léger */
+            border-bottom: 1px solid var(--gold);
         }
+
+        .sidebar-header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px; margin: 0; color: var(--primary);
+            letter-spacing: 0.5px;
+        }
+        .sidebar-header p { font-size: 12px; color: #666; margin-top: 5px; font-style: italic; }
+
+        /* Recherche */
+        .search-box { padding: 15px 20px; border-bottom: 1px solid var(--border); }
+        .search-input {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;
+            font-family: inherit; box-sizing: border-box;
+        }
+        .search-input:focus { border-color: var(--secondary); outline: none; }
+
+        /* Filtres (Accordéons) */
+        .filters-container { overflow-y: auto; flex-grow: 1; padding: 0 20px; }
         
-        .checkbox-list { max-height: 200px; overflow-y: auto; font-size: 13px; }
-        .checkbox-item { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 3px 0; cursor: pointer; 
+        .facet-group { border-bottom: 1px solid var(--border); padding: 15px 0; }
+        
+        .facet-header {
+            display: flex; justify-content: space-between; cursor: pointer;
+            font-weight: 700; color: var(--secondary); text-transform: uppercase; font-size: 12px; letter-spacing: 1px;
         }
-        .checkbox-item:hover { background-color: #f0f0f0; }
-        .count-badge { background: #eee; color: #666; padding: 1px 6px; border-radius: 10px; font-size: 10px; }
+        .facet-header:hover { color: var(--primary); }
+        .facet-content { margin-top: 10px; display: none; } /* Caché par défaut */
+        .facet-content.open { display: block; animation: fadeIn 0.3s; }
 
-        .reset-btn {
-            width: 100%; padding: 10px; background: var(--secondary-color); color: white;
-            border: none; cursor: pointer; font-weight: bold; text-transform: uppercase;
-            font-size: 12px;
+        .checkbox-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 0; font-size: 13px; cursor: pointer; color: #555;
         }
-        .reset-btn:hover { background: #333; }
-
-        /* 2. MAP */
-        #map {
-            grid-area: map;
-            background: #e5e5e5;
+        .checkbox-item:hover { color: #000; }
+        .count-badge { 
+            background: #f1f3f5; color: #868e96; font-size: 10px; 
+            padding: 2px 6px; border-radius: 4px; 
         }
 
-        /* 3. TIMELINE DASHBOARD */
+        /* Footer Sidebar */
+        .sidebar-footer { padding: 15px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        .btn {
+            flex: 1; padding: 10px; border: none; border-radius: 4px; 
+            cursor: pointer; font-size: 12px; font-weight: bold; text-transform: uppercase;
+            transition: background 0.2s;
+        }
+        .btn-reset { background: #f8f9fa; color: #666; border: 1px solid #dee2e6; }
+        .btn-reset:hover { background: #e9ecef; }
+        .btn-export { background: var(--secondary); color: white; }
+        .btn-export:hover { background: #254650; }
+
+        /* --- 2. MAP AVEC ANIMATIONS --- */
+        #map { grid-area: map; background: #e0e0e0; }
+        
+        /* CSS Magic pour animer le rayon SVG des marqueurs Leaflet */
+        .leaflet-interactive {
+            transition: r 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), 
+                        stroke-width 0.3s,
+                        fill-opacity 0.3s;
+        }
+
+        /* --- 3. TIMELINE AVANCÉE --- */
         #timeline-panel {
             grid-area: timeline;
             background: #fff;
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid #ddd;
             padding: 10px 40px;
+            position: relative;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            position: relative;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
+
+        #controls-row { display: flex; align-items: center; margin-bottom: 5px; font-size: 14px; color: var(--secondary);}
+        .play-btn { 
+            background: none; border: 2px solid var(--primary); color: var(--primary); 
+            width: 30px; height: 30px; border-radius: 50%; margin-right: 15px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .play-btn:hover { background: var(--primary); color: white; }
 
         /* Histogramme */
-        #histogram {
-            width: 100%;
-            height: 40px;
-            display: flex;
-            align-items: flex-end;
-            margin-bottom: 5px;
-        }
-        .hist-bar {
-            flex: 1;
-            background-color: #e0e0e0;
-            margin: 0 1px;
-            transition: background-color 0.2s;
-        }
-        .hist-bar.active { background-color: var(--primary-color); }
+        #histogram { height: 50px; display: flex; align-items: flex-end; width: 100%; margin-bottom: -15px; pointer-events: none; opacity: 0.8; }
+        .hist-bar { flex: 1; background: #dee2e6; margin: 0 1px; border-radius: 2px 2px 0 0; transition: height 0.5s, background-color 0.3s; }
+        .hist-bar.active { background: var(--gold); }
 
-        /* Slider Customisation */
-        #time-slider { height: 10px; }
-        .noUi-connect { background: var(--primary-color); opacity: 0.5; }
-        .noUi-handle { border-radius: 50%; width: 18px; height: 18px; top: -5px; cursor: grab; box-shadow: none; border: 2px solid var(--primary-color); }
+        /* Slider styling */
+        #time-slider { height: 8px; margin-top: 20px; border: none; background: transparent; }
+        .noUi-connect { background: var(--primary); opacity: 0.7; }
+        .noUi-handle {
+            width: 16px; height: 16px; border-radius: 50%; background: var(--primary);
+            border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); top: -5px;
+        }
         .noUi-handle:before, .noUi-handle:after { display: none; }
-        .slider-labels {
-            display: flex; justify-content: space-between; margin-top: 10px;
-            font-weight: bold; color: var(--secondary-color); font-size: 14px;
-        }
 
+        @keyframes fadeIn { from { opacity:0; transform: translateY(-5px);} to { opacity:1; transform: translateY(0);} }
     </style>
 </head>
 <body>
 
-    <!-- Sidebar avec Filtres -->
+    <!-- SIDEBAR -->
     <div id="sidebar">
         <div class="sidebar-header">
-            <h1>Venetian Opera Analytics</h1>
-            <p>Exploration multivariée (1660-1760)</p>
-        </div>
-        
-        <div class="filters-container">
-            <!-- Les facettes seront injectées ici par JS -->
-            <div id="facets-output"></div>
+            <h1>Opera Venetia</h1>
+            <p>Analytique spatio-temporelle (1660-1760)</p>
         </div>
 
-        <div style="padding:15px;">
-            <button class="reset-btn" onclick="resetAll()">Réinitialiser les filtres</button>
+        <div class="search-box">
+            <input type="text" id="searchInput" class="search-input" placeholder="Rechercher un titre (ex: Orontea)..." onkeyup="handleSearch()">
+        </div>
+        
+        <div class="filters-container" id="facets-output">
+            <!-- Les accordéons seront générés ici -->
+        </div>
+
+        <div class="sidebar-footer">
+            <button class="btn btn-reset" onclick="resetAll()"><i class="fas fa-undo"></i> Reset</button>
+            <button class="btn btn-export" onclick="exportData()"><i class="fas fa-file-csv"></i> Exporter</button>
         </div>
     </div>
 
-    <!-- Carte -->
+    <!-- MAP -->
     <div id="map"></div>
 
-    <!-- Timeline & Slider -->
+    <!-- TIMELINE -->
     <div id="timeline-panel">
-        <!-- Histogramme visuel -->
-        <div id="histogram"></div>
-        <!-- Le Slider technique -->
-        <div id="time-slider"></div>
-        <!-- Labels de dates -->
-        <div class="slider-labels">
-            <span id="date-start">1660</span>
-            <span id="info-selection" style="font-weight:normal; color:#666;">Chargement...</span>
-            <span id="date-end">1760</span>
+        <div id="controls-row">
+            <button class="play-btn" onclick="togglePlay()" title="Lire l'évolution"><i id="play-icon" class="fas fa-play"></i></button>
+            <span id="date-display" style="font-weight:bold; font-size: 1.1em;">1660 - 1760</span>
+            <span style="margin-left: auto; font-size: 0.9em; color: #666;" id="stats-display">Chargement...</span>
         </div>
+        
+        <div id="histogram"></div>
+        <div id="time-slider"></div>
     </div>
 
     <!-- Scripts -->
@@ -162,278 +199,353 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
 
     <script>
-        // --- 1. CONFIGURATION & ÉTAT GLOBAL ---
-        const CONFIG = {
-            minYear: 1660,
-            maxYear: 1760
-        };
-
-        // État de l'application (State management)
+        // --- 1. CONFIGURATION & ETAT ---
+        const CONFIG = { minYear: 1660, maxYear: 1760 };
+        
         let appState = {
-            data: [],               // GeoJSON features
-            filters: {},            // { theatre: Set(), compositeur: Set()... }
-            timeRange: [1660, 1760]
+            data: [],
+            filteredData: [], // Sous-ensemble actuel
+            filters: {},
+            searchQuery: "",
+            timeRange: [1660, 1760],
+            isPlaying: false
         };
 
-        let map, layerGroup;
-        let slider;
+        let map, markerLayerGroup = {}; // Stocke les réf des marqueurs par ID de théâtre
+        let slider, playInterval;
 
-        // --- 2. INITIALISATION DE LA CARTE ---
-        function initMap() {
-            map = L.map('map', { zoomControl: false }).setView([45.437, 12.335], 14);
+        // --- 2. INITIALISATION ---
+        function init() {
+            // A. Carte
+            map = L.map('map', { zoomControl: false }).setView([45.436, 12.334], 14);
             L.control.zoom({ position: 'topright' }).addTo(map);
-
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; CARTO',
-                maxZoom: 19
+                attribution: '&copy; CARTO', maxZoom: 20
             }).addTo(map);
 
-            layerGroup = L.layerGroup().addTo(map);
+            // B. Données
+            fetch('sample_operas.geojson')
+                .then(res => res.json())
+                .then(geoJson => {
+                    appState.data = geoJson.features;
+                    initUI();
+                    updateDashboard();
+                });
         }
 
-        // --- 3. CHARGEMENT ET PRÉPARATION DES DONNÉES ---
-        fetch('sample_operas.geojson')
-            .then(res => res.json())
-            .then(geoJson => {
-                appState.data = geoJson.features;
-                
-                initFacets();      // Créer les cases à cocher
-                initSlider();      // Créer le slider et l'histogramme
-                updateDashboard(); // Premier rendu
-            });
+        function initUI() {
+            initFacets();
+            initSlider();
+        }
 
-        // --- 4. GESTION DES FILTRES (FACETTES) ---
-        // Définition des catégories à filtrer
-        const FACET_CONFIG = [
+        // --- 3. FACETTES & RECHERCHE (Accordéons) ---
+        const FACETS = [
             { key: 'theatre', label: 'Théâtres' },
             { key: 'compositeur', label: 'Compositeurs' },
             { key: 'librettiste', label: 'Librettistes' }
-            // Ajouter { key: 'genre', label: 'Genre' } ici plus tard
         ];
 
         function initFacets() {
             const container = document.getElementById('facets-output');
-            
-            FACET_CONFIG.forEach(facet => {
-                // 1. Créer le conteneur HTML de la facette
-                const groupDiv = document.createElement('div');
-                groupDiv.className = 'facet-group';
-                
-                const title = document.createElement('span');
-                title.className = 'facet-title';
-                title.innerText = facet.label;
-                groupDiv.appendChild(title);
+            container.innerHTML = ""; // Reset
 
-                const listDiv = document.createElement('div');
-                listDiv.className = 'checkbox-list';
-                listDiv.id = `list-${facet.key}`;
-
-                // 2. Extraire les valeurs uniques et compter
+            FACETS.forEach((facet, index) => {
+                // Calcul des comptes
                 const counts = {};
                 appState.data.forEach(f => {
                     const val = f.properties[facet.key];
                     if(val) counts[val] = (counts[val] || 0) + 1;
                 });
-
-                // Trier par ordre alphabétique
                 const sortedKeys = Object.keys(counts).sort();
 
-                // 3. Créer les checkboxes
+                // HTML Structure
+                const group = document.createElement('div');
+                group.className = 'facet-group';
+
+                // Header (Accordion Trigger)
+                const header = document.createElement('div');
+                header.className = 'facet-header';
+                header.innerHTML = `<span>${facet.label}</span> <i class="fas fa-chevron-down"></i>`;
+                header.onclick = () => {
+                    const content = group.querySelector('.facet-content');
+                    const icon = group.querySelector('i');
+                    const isOpen = content.classList.contains('open');
+                    
+                    document.querySelectorAll('.facet-content').forEach(el => el.classList.remove('open')); // Close others (optional)
+                    document.querySelectorAll('.facet-header i').forEach(el => el.className = 'fas fa-chevron-down');
+
+                    if (!isOpen) {
+                        content.classList.add('open');
+                        icon.className = 'fas fa-chevron-up';
+                    }
+                };
+
+                // List Content
+                const content = document.createElement('div');
+                content.className = 'facet-content';
+                if (index === 0) content.classList.add('open'); // Ouvrir le premier par défaut
+
                 sortedKeys.forEach(val => {
                     const item = document.createElement('label');
                     item.className = 'checkbox-item';
                     item.innerHTML = `
-                        <span>
-                            <input type="checkbox" data-category="${facet.key}" value="${val}" onchange="handleFilterChange()"> 
-                            ${val}
-                        </span>
+                        <span><input type="checkbox" value="${val}" data-cat="${facet.key}" onchange="handleFilterChange()"> ${val}</span>
                         <span class="count-badge">${counts[val]}</span>
                     `;
-                    listDiv.appendChild(item);
+                    content.appendChild(item);
                 });
 
-                groupDiv.appendChild(listDiv);
-                container.appendChild(groupDiv);
+                group.appendChild(header);
+                group.appendChild(content);
+                container.appendChild(group);
             });
         }
 
         function handleFilterChange() {
-            // Reconstruit l'objet appState.filters
-            const filters = {};
-            
-            FACET_CONFIG.forEach(facet => {
-                const checkedInputs = document.querySelectorAll(`#list-${facet.key} input:checked`);
-                if (checkedInputs.length > 0) {
-                    filters[facet.key] = new Set();
-                    checkedInputs.forEach(input => filters[facet.key].add(input.value));
+            const newFilters = {};
+            FACETS.forEach(f => {
+                const checked = document.querySelectorAll(`input[data-cat="${f.key}"]:checked`);
+                if(checked.length) {
+                    newFilters[f.key] = new Set(Array.from(checked).map(c => c.value));
                 }
             });
-            
-            appState.filters = filters;
+            appState.filters = newFilters;
             updateDashboard();
         }
 
-        function resetAll() {
-            document.querySelectorAll('.checkbox-item input').forEach(cb => cb.checked = false);
-            slider.set([CONFIG.minYear, CONFIG.maxYear]); // Reset slider
-            appState.filters = {};
-            // Le slider trigger l'update, pas besoin d'appeler updateDashboard ici si le slider bouge
+        function handleSearch() {
+            appState.searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            updateDashboard();
         }
 
-        // --- 5. GESTION DU SLIDER & HISTOGRAMME ---
+        // --- 4. SLIDER & PLAYBACK ---
         function initSlider() {
-            const sliderElem = document.getElementById('time-slider');
-            
-            // Création du slider noUiSlider
-            slider = noUiSlider.create(sliderElem, {
+            const sliderEl = document.getElementById('time-slider');
+            slider = noUiSlider.create(sliderEl, {
                 start: [CONFIG.minYear, CONFIG.maxYear],
-                connect: true, // La zone colorée entre les poignées
-                range: {
-                    'min': CONFIG.minYear,
-                    'max': CONFIG.maxYear
-                },
-                step: 1, // Pas d'un an
-                tooltips: false
-            });
-
-            // Événement de mise à jour
-            slider.on('update', function (values) {
-                const start = Math.round(values[0]);
-                const end = Math.round(values[1]);
-                
-                document.getElementById('date-start').innerText = start;
-                document.getElementById('date-end').innerText = end;
-                
-                appState.timeRange = [start, end];
-                updateDashboard();
-                updateHistogramHighlight(start, end);
+                connect: true,
+                range: { min: CONFIG.minYear, max: CONFIG.maxYear },
+                step: 1,
+                behaviour: 'drag',
+                animate: false // Important pour la performance du playback
             });
 
             generateHistogram();
+
+            slider.on('update', (values) => {
+                const s = Math.round(values[0]);
+                const e = Math.round(values[1]);
+                appState.timeRange = [s, e];
+                
+                document.getElementById('date-display').innerText = (s === e) ? s : `${s} - ${e}`;
+                updateHistogramStyle(s, e);
+                updateDashboard(); // Redessine la carte
+            });
         }
 
-        function generateHistogram() {
-            // Calcule la distribution temporelle de TOUTES les données
-            const yearsMap = new Map();
-            for(let y = CONFIG.minYear; y <= CONFIG.maxYear; y++) yearsMap.set(y, 0);
-
-            let maxCount = 0;
-            appState.data.forEach(f => {
-                const y = f.properties.annee; // Assure-toi que c'est un entier
-                if(y >= CONFIG.minYear && y <= CONFIG.maxYear) {
-                    const newVal = yearsMap.get(y) + 1;
-                    yearsMap.set(y, newVal);
-                    if(newVal > maxCount) maxCount = newVal;
-                }
-            });
-
-            // Génère le HTML
-            const container = document.getElementById('histogram');
-            container.innerHTML = '';
+        function togglePlay() {
+            appState.isPlaying = !appState.isPlaying;
+            const icon = document.getElementById('play-icon');
             
-            for(let y = CONFIG.minYear; y <= CONFIG.maxYear; y++) {
-                const count = yearsMap.get(y);
-                const heightPercent = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                
-                const bar = document.createElement('div');
-                bar.className = 'hist-bar';
-                bar.dataset.year = y;
-                bar.title = `${y}: ${count} opéras`;
-                bar.style.height = `${heightPercent}%`;
-                container.appendChild(bar);
+            if (appState.isPlaying) {
+                icon.className = "fas fa-pause";
+                startPlayback();
+            } else {
+                icon.className = "fas fa-play";
+                stopPlayback();
             }
         }
 
-        function updateHistogramHighlight(start, end) {
-            // Change la couleur des barres selon si elles sont dans la plage
-            document.querySelectorAll('.hist-bar').forEach(bar => {
-                const y = parseInt(bar.dataset.year);
-                if (y >= start && y <= end) {
-                    bar.classList.add('active');
-                } else {
-                    bar.classList.remove('active');
+        function startPlayback() {
+            // Mode "Fenêtre glissante" : on avance année par année avec une fenêtre de 5 ans (par exemple)
+            // Ou mode "Accumulation" : on augmente la fin seulement.
+            // Ici : Mode "Scanning" (Fenêtre de 2 ans glissante)
+            let currentYear = appState.timeRange[0];
+            if (currentYear >= CONFIG.maxYear) currentYear = CONFIG.minYear;
+
+            const windowSize = 2; // Taille de la fenêtre glissante
+
+            playInterval = setInterval(() => {
+                if (currentYear > CONFIG.maxYear) {
+                    togglePlay(); // Stop à la fin
+                    return;
                 }
+                slider.set([currentYear, Math.min(currentYear + windowSize, CONFIG.maxYear)]);
+                currentYear++;
+            }, 800); // Vitesse (ms)
+        }
+
+        function stopPlayback() {
+            clearInterval(playInterval);
+        }
+
+        function generateHistogram() {
+            const histDiv = document.getElementById('histogram');
+            const years = {};
+            let max = 0;
+            
+            // Calcul simple sur toutes les données
+            appState.data.forEach(f => {
+                const y = f.properties.annee;
+                years[y] = (years[y] || 0) + 1;
+                if(years[y] > max) max = years[y];
+            });
+
+            for (let y = CONFIG.minYear; y <= CONFIG.maxYear; y++) {
+                const bar = document.createElement('div');
+                bar.className = 'hist-bar';
+                bar.id = `bar-${y}`;
+                const h = years[y] ? (years[y] / max * 100) : 0;
+                bar.style.height = `${h}%`;
+                histDiv.appendChild(bar);
+            }
+        }
+
+        function updateHistogramStyle(start, end) {
+            document.querySelectorAll('.hist-bar').forEach(bar => {
+                const y = parseInt(bar.id.split('-')[1]);
+                if(y >= start && y <= end) bar.classList.add('active');
+                else bar.classList.remove('active');
             });
         }
 
-        // --- 6. CŒUR DU SYSTÈME : FILTRAGE ET RENDU ---
+        // --- 5. CORE LOGIC & ANIMATION (Le secret de l'excellence) ---
         function updateDashboard() {
-            // A. Filtrer les données (Logique Croisée)
-            const filteredFeatures = appState.data.filter(feature => {
-                const props = feature.properties;
-
-                // 1. Filtre Temporel
-                const year = props.annee;
-                if (year < appState.timeRange[0] || year > appState.timeRange[1]) return false;
-
-                // 2. Filtres à Facettes (Catégories)
-                // Pour chaque catégorie active (ex: Composer), l'objet doit matcher une des valeurs
-                for (const [key, allowedSet] of Object.entries(appState.filters)) {
-                    if (!allowedSet.has(props[key])) return false;
+            // 1. Filtrage des données
+            appState.filteredData = appState.data.filter(f => {
+                const p = f.properties;
+                // Temps
+                if (p.annee < appState.timeRange[0] || p.annee > appState.timeRange[1]) return false;
+                // Facettes
+                for (let k in appState.filters) {
+                    if (!appState.filters[k].has(p[k])) return false;
                 }
-
+                // Recherche texte
+                if (appState.searchQuery) {
+                    const searchStr = `${p.titre} ${p.compositeur} ${p.theatre}`.toLowerCase();
+                    if (!searchStr.includes(appState.searchQuery)) return false;
+                }
                 return true;
             });
 
-            // Mise à jour texte info
-            document.getElementById('info-selection').innerText = `${filteredFeatures.length} opéras sélectionnés`;
+            // 2. Stats
+            document.getElementById('stats-display').innerText = 
+                `${appState.filteredData.length} représentation(s)`;
 
-            // B. Agrégation Spatiale (Pour les cercles proportionnels)
-            // On regroupe par Nom de Théâtre (ou coordonnées)
-            const locations = {};
-
-            filteredFeatures.forEach(f => {
-                const theatreName = f.properties.theatre;
-                if (!locations[theatreName]) {
-                    locations[theatreName] = {
+            // 3. Agrégation par Théâtre (Pour garder les points fixes et faire varier la taille)
+            const theatreAgg = {};
+            
+            // A. Initialiser tous les théâtres connus à 0 (pour qu'ils rétrécissent au lieu de disparaître)
+            // Note: Pour une vraie app, extraire la liste unique des théâtres au chargement
+            appState.data.forEach(f => {
+                if(!theatreAgg[f.properties.theatre]) {
+                    theatreAgg[f.properties.theatre] = {
                         lat: f.geometry.coordinates[1],
                         lng: f.geometry.coordinates[0],
                         count: 0,
-                        operas: [] // Pour la popup
+                        titles: []
                     };
                 }
-                locations[theatreName].count++;
-                locations[theatreName].operas.push(f.properties);
             });
 
-            // C. Dessiner sur la carte
-            layerGroup.clearLayers();
+            // B. Compter les occurrences filtrées
+            appState.filteredData.forEach(f => {
+                const t = f.properties.theatre;
+                theatreAgg[t].count++;
+                theatreAgg[t].titles.push(f.properties);
+            });
 
-            Object.keys(locations).forEach(key => {
-                const loc = locations[key];
-                
-                // Calcul de la taille (Logarithmique ou linéaire)
-                // Rayon min 5px, puis +3px par opéra (ajuster selon besoin)
-                const radius = 5 + (Math.sqrt(loc.count) * 4); 
+            // 4. Dessin / Mise à jour des marqueurs (ANIMATION)
+            Object.keys(theatreAgg).forEach(theatreName => {
+                const data = theatreAgg[theatreName];
+                const targetRadius = data.count === 0 ? 0 : 4 + Math.sqrt(data.count) * 4; // Echelle
 
-                const marker = L.circleMarker([loc.lat, loc.lng], {
-                    radius: radius,
-                    color: '#003049',
-                    weight: 1,
-                    fillColor: '#d62828',
-                    fillOpacity: 0.6
-                });
-
-                // Popup riche
-                let popupContent = `<strong>${key}</strong><br>`;
-                popupContent += `<em>${loc.count} représentations sur la période</em><br>`;
-                popupContent += `<div style="max-height:100px; overflow-y:auto; margin-top:5px; font-size:0.9em; border-top:1px solid #ccc;">`;
-                
-                // Lister les 5 premiers opéras (pour ne pas surcharger)
-                loc.operas.slice(0, 10).forEach(op => {
-                    popupContent += `• ${op.titre} (${op.annee})<br>`;
-                });
-                if(loc.operas.length > 10) popupContent += `... et ${loc.operas.length - 10} autres.`;
-                popupContent += `</div>`;
-
-                marker.bindPopup(popupContent);
-                marker.addTo(layerGroup);
+                if (markerLayerGroup[theatreName]) {
+                    // UPDATE: Le marqueur existe déjà, on met à jour son rayon et sa popup
+                    const marker = markerLayerGroup[theatreName];
+                    marker.setRadius(targetRadius); // La transition CSS fera le reste !
+                    
+                    // On met à jour la popup seulement si le count > 0
+                    if (data.count > 0) {
+                        marker.bindPopup(buildPopup(theatreName, data));
+                    }
+                } else if (data.count > 0) {
+                    // CREATE: Le marqueur n'existe pas encore
+                    const marker = L.circleMarker([data.lat, data.lng], {
+                        radius: 0, // Commence petit pour animer l'apparition
+                        color: '#000',
+                        weight: 1,
+                        fillColor: '#d00000',
+                        fillOpacity: 0.7
+                    });
+                    
+                    marker.bindPopup(buildPopup(theatreName, data));
+                    marker.addTo(map);
+                    markerLayerGroup[theatreName] = marker;
+                    
+                    // Hack pour forcer l'animation d'entrée
+                    setTimeout(() => marker.setRadius(targetRadius), 10);
+                }
             });
         }
 
-        // Lancement
-        initMap();
+        function buildPopup(title, data) {
+            let html = `<div style="font-family:'Playfair Display'; font-weight:bold; font-size:16px; color:#9e2a2b; border-bottom:1px solid #ccc; margin-bottom:5px;">${title}</div>`;
+            html += `<div style="font-size:12px; color:#666;">${data.count} opéra(s) sélectionné(s)</div>`;
+            html += `<div style="max-height:150px; overflow-y:auto; margin-top:8px;">`;
+            html += `<table style="width:100%; font-size:11px; border-collapse:collapse;">`;
+            
+            data.titles.slice(0, 50).forEach(op => {
+                html += `<tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:3px 0;"><strong>${op.annee}</strong></td>
+                    <td>${op.titre}</td>
+                    <td style="color:#666;">${op.compositeur}</td>
+                </tr>`;
+            });
+            html += `</table></div>`;
+            return html;
+        }
 
+        // --- 6. EXPORT CSV ---
+        function exportData() {
+            if (appState.filteredData.length === 0) {
+                alert("Aucune donnée à exporter !");
+                return;
+            }
+            
+            // 1. Extraire les headers
+            const props = Object.keys(appState.filteredData[0].properties);
+            let csvContent = "data:text/csv;charset=utf-8," + props.join(",") + "\n";
+
+            // 2. Lignes
+            appState.filteredData.forEach(row => {
+                const vals = props.map(k => {
+                    let val = row.properties[k] || "";
+                    return `"${val.toString().replace(/"/g, '""')}"`; // Echapper les guillemets
+                });
+                csvContent += vals.join(",") + "\n";
+            });
+
+            // 3. Téléchargement
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "venice_operas_filtered.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function resetAll() {
+            document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+            document.getElementById('searchInput').value = "";
+            appState.filters = {};
+            appState.searchQuery = "";
+            slider.set([CONFIG.minYear, CONFIG.maxYear]);
+            // L'update se fera via l'event du slider
+        }
+
+        init();
     </script>
 </body>
 </html>
