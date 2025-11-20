@@ -1,93 +1,324 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>Opera in Venice</title>
+    <title>Opera in Venice: 1660-1760</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <!-- CSS Leaflet & Timeline & Fonts -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
     <style>
-        #map {
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Lato', sans-serif;
+            display: grid;
             height: 100vh;
-            width: 100%;
+            width: 100vw;
+            /* Layout: Carte prend tout l'espace, Sidebar à droite, Slider en surimpression bas */
+            grid-template-columns: 1fr 320px; 
+            grid-template-rows: 1fr;
+            overflow: hidden;
         }
+
+        /* 1. LA CARTE */
+        #map {
+            grid-column: 1;
+            grid-row: 1;
+            background: #e5e5e5;
+            z-index: 1;
+        }
+
+        /* 2. LA SIDEBAR (FILTRES) */
+        #sidebar {
+            grid-column: 2;
+            grid-row: 1;
+            background: #fff;
+            border-left: 1px solid #ccc;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.05);
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Styles de la sidebar */
+        h1 { font-size: 20px; margin-top: 0; color: #2b2d42; }
+        .meta-info { font-size: 0.85rem; color: #666; margin-bottom: 20px; font-style: italic;}
+        
+        .control-section { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .control-section:last-child { border-bottom: none; }
+        
+        label.section-title { display: block; font-weight: bold; margin-bottom: 10px; color: #d90429; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
+
+        select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; font-family: inherit; }
+
+        /* Liste des checkboxes */
+        .checkbox-list {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+        .checkbox-item { display: flex; align-items: center; margin-bottom: 6px; cursor: pointer; }
+        .checkbox-item input { margin-right: 8px; }
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; flex-shrink: 0;}
+
+        /* 3. LE SLIDER (TIMELINE) */
+        /* On force le slider à être fixé en bas à gauche (sur la carte) */
+        .leaflet-control-timeline {
+            width: calc(100% - 320px) !important; /* Largeur carte */
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            border-top: 1px solid #ccc !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            padding: 10px 20px !important;
+            box-sizing: border-box;
+            z-index: 1000; /* Au-dessus de la carte */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 70px;
+        }
+
+        /* Customisation des éléments internes du slider */
+        .leaflet-control-timeline input[type=range] { width: 60% !important; margin: 0 15px; cursor: pointer; }
+        .leaflet-control-timeline .time-text { 
+            font-weight: bold; color: #d90429; font-size: 1.1rem; 
+            min-width: 140px; text-align: center; 
+            font-variant-numeric: tabular-nums;
+        }
+        .leaflet-control-timeline button {
+            background: #2b2d42; color: white; border: none; 
+            padding: 5px 10px; cursor: pointer; border-radius: 3px;
+        }
+        .leaflet-control-timeline button:hover { background: #d90429; }
+
     </style>
 </head>
 <body>
 
+    <!-- Carte -->
     <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <h1>Opéra Vénitien</h1>
+        <div class="meta-info">Exploration spatio-temporelle (1660-1760)</div>
 
+        <!-- Choix de la variable de coloration -->
+        <div class="control-section">
+            <label class="section-title">Visualiser par :</label>
+            <select id="attributeSelect" onchange="updateInterface()">
+                <option value="theatre" selected>Théâtre</option>
+                <option value="compositeur">Compositeur</option>
+                <option value="librettiste">Librettiste</option>
+            </select>
+        </div>
+
+        <!-- Filtres dynamiques -->
+        <div class="control-section">
+            <label class="section-title">Filtrer les données :</label>
+            <div class="checkbox-list" id="filterContainer">
+                <!-- Rempli par JS -->
+            </div>
+        </div>
+
+        <div class="control-section">
+            <button onclick="toggleAll(true)">Tout cocher</button>
+            <button onclick="toggleAll(false)">Tout décocher</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet.timeline@1.2.1/dist/leaflet.timeline.min.js"></script>
 
     <script>
-        // 1. Initialisation de la carte centrée sur Venise
-var map = L.map('map').setView([45.437, 12.335], 14);
+        // --- CONFIGURATION ---
+        const START_YEAR = 1660;
+        const END_YEAR = 1760;
+        // Durée artificielle d'une "saison" pour l'affichage (en ms) = 90 jours
+        const SEASON_DURATION = 90 * 24 * 60 * 60 * 1000; 
 
-// 2. Fond de carte (Style clair "Voyager" pour lisibilité)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 20
-}).addTo(map);
-
-// 3. Chargement des données
-fetch('sample_operas.geojson')
-    .then(function(response) {
-        return response.json();
-    })
-    .then(function(data) {
+        let map = L.map('map', { zoomControl: false }).setView([45.437, 12.335], 14);
         
-        // A. Configuration de la Timeline (La couche de données)
-        var timeline = L.timeline(data, {
-            // Extraction des dates de début et fin dans ton GeoJSON
-            getInterval: function(feature) {
-                return {
-                    start: feature.properties.start, // Ex: "1660-01-01"
-                    end: feature.properties.end      // Ex: "1660-12-31"
-                };
-            },
-            // Style des points
-            pointToLayer: function(feature, latlng) {
-                return L.circleMarker(latlng, {
-                    radius: 6,
-                    color: "#FFF",
-                    fillColor: "#d62828", // Rouge Opéra
-                    fillOpacity: 0.8,
-                    weight: 1
-                });
-            },
-            // Popup au clic
-            onEachFeature: function(feature, layer) {
-                layer.bindPopup(
-                    `<strong>${feature.properties.titre}</strong><br>
-                     Compositeur: ${feature.properties.compositeur}<br>
-                     Théâtre: ${feature.properties.theatre}<br>
-                     Année: ${feature.properties.annee}`
-                );
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        // Fond de carte "Voyager" (clair, sans trop de labels modernes)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Variables globales
+        let rawData = null;         // Le GeoJSON brut
+        let timelineLayer = null;   // La couche Leaflet Timeline
+        let timelineControl = null; // Le slider
+        
+        // Palette de couleurs (Safe pour daltoniens + contraste)
+        const palette = [
+            "#e63946", "#1d3557", "#457b9d", "#a8dadc", "#f4a261", 
+            "#2a9d8f", "#e9c46a", "#9d4edd", "#fb8500", "#606c38"
+        ];
+
+        // --- UTILITAIRES ---
+
+        // Génère une couleur unique pour une chaîne de texte (ex: nom du théâtre)
+        function stringToColor(str) {
+            if (!str) return "#ccc";
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
             }
-        });
+            return palette[Math.abs(hash) % palette.length];
+        }
 
-        // B. Configuration du Contrôleur (Le Slider en bas)
-        var timelineControl = L.timelineSliderControl({
-            formatOutput: function(date) {
-                // Affiche l'année en cours sur le slider
-                return new Date(date).getFullYear();
-            },
-            enablePlayback: true, // Bouton play/pause
-            steps: 1000 // Fluidité du slider
-        });
+        // Convertit une date en Saison + Année
+        function getSeasonLabel(dateStr) {
+            const d = new Date(dateStr);
+            const month = d.getMonth(); // 0-11
+            const year = d.getFullYear();
+            
+            // Mapping simplifié des saisons météorologiques
+            // Hiver: Dec, Jan, Fev | Printemps: Mar, Avr, Mai...
+            if (month === 11 || month <= 1) return `Winter ${month === 11 ? year : year}`;
+            if (month >= 2 && month <= 4) return `Spring ${year}`;
+            if (month >= 5 && month <= 7) return `Summer ${year}`;
+            return `Autumn ${year}`;
+        }
 
-        // C. Ajout à la carte
-        timeline.addTo(map);
-        timelineControl.addTo(map);
-        timelineControl.addTimelines(timeline);
-    })
-    .catch(function(err) {
-        console.error("Erreur de chargement du GeoJSON : ", err);
-    });
+        // --- LOGIQUE PRINCIPALE ---
+
+        fetch('sample_operas.geojson')
+            .then(res => res.json())
+            .then(data => {
+                rawData = data;
+                // Initialisation
+                updateInterface(); 
+            })
+            .catch(err => console.error("Erreur chargement:", err));
+
+        // Fonction appelée quand on change le SELECT ou qu'on charge la page
+        function updateInterface() {
+            const attr = document.getElementById('attributeSelect').value;
+            const container = document.getElementById('filterContainer');
+            container.innerHTML = '';
+
+            // 1. Extraire les valeurs uniques pour la caractéristique choisie
+            const uniqueValues = new Set();
+            rawData.features.forEach(f => {
+                if (f.properties[attr]) uniqueValues.add(f.properties[attr]);
+            });
+            const sortedValues = Array.from(uniqueValues).sort();
+
+            // 2. Créer les checkboxes
+            sortedValues.forEach(val => {
+                const color = stringToColor(val);
+                const div = document.createElement('div');
+                div.className = 'checkbox-item';
+                div.innerHTML = `
+                    <input type="checkbox" value="${val}" checked onchange="refreshMap()">
+                    <span class="color-dot" style="background-color:${color}"></span>
+                    <span>${val}</span>
+                `;
+                container.appendChild(div);
+            });
+
+            // 3. Lancer la carte
+            refreshMap();
+        }
+
+        // Fonction pour cocher/décocher tout
+        function toggleAll(status) {
+            document.querySelectorAll('#filterContainer input[type="checkbox"]').forEach(cb => {
+                cb.checked = status;
+            });
+            refreshMap();
+        }
+
+        // Fonction qui redessine la Timeline en fonction des filtres
+        function refreshMap() {
+            // Nettoyage
+            if (timelineLayer) map.removeLayer(timelineLayer);
+            if (timelineControl) map.removeControl(timelineControl);
+
+            // Récupération des valeurs actives
+            const attr = document.getElementById('attributeSelect').value;
+            const checkedBoxes = Array.from(document.querySelectorAll('#filterContainer input:checked'))
+                                      .map(cb => cb.value);
+
+            // Création de la couche
+            timelineLayer = L.timeline(rawData, {
+                // A. FILTRE (Données -> Visualisation)
+                filter: function(feature) {
+                    const val = feature.properties[attr];
+                    return checkedBoxes.includes(val);
+                },
+
+                // B. INTERVALLE DE TEMPS (Crucial pour DH)
+                getInterval: function(feature) {
+                    const start = new Date(feature.properties.start).getTime();
+                    // Si start == end dans les données, on ajoute une durée artificielle
+                    // pour que le point reste visible pendant la saison
+                    let end = new Date(feature.properties.end).getTime();
+                    if (start === end) {
+                        end = start + SEASON_DURATION; 
+                    }
+                    return { start: start, end: end };
+                },
+
+                // C. STYLE DES POINTS
+                pointToLayer: function(feature, latlng) {
+                    const val = feature.properties[attr];
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        color: "#333",      // Contour sombre
+                        weight: 1,
+                        fillColor: stringToColor(val),
+                        fillOpacity: 0.8    // Transparence pour gérer les superpositions
+                    });
+                },
+
+                // D. POPUP
+                onEachFeature: function(feature, layer) {
+                    const p = feature.properties;
+                    layer.bindPopup(`
+                        <strong>${p.titre}</strong> (${p.annee})<br>
+                        <hr style="margin:5px 0; border:0; border-top:1px solid #eee;">
+                        Théâtre: <b>${p.theatre}</b><br>
+                        Compositeur: ${p.compositeur}<br>
+                        Librettiste: ${p.librettiste}<br>
+                        <em>${getSeasonLabel(p.start)}</em>
+                    `);
+                }
+            });
+
+            // E. SLIDER
+            timelineControl = L.timelineSliderControl({
+                formatOutput: function(date) {
+                    return getSeasonLabel(date);
+                },
+                enablePlayback: true,
+                autoPlay: false,
+                // Calcul des pas: (1760-1660) * 4 saisons = ~400 steps
+                steps: 500, 
+                duration: 15000, // 15 secondes pour parcourir le siècle
+                showTicks: false
+            });
+
+            timelineLayer.addTo(map);
+            timelineControl.addTo(map);
+            timelineControl.addTimelines(timelineLayer);
+            
+            // Optionnel : on se place au début si c'est le premier chargement
+            // timelineControl.setTime(new Date("1660-01-01").getTime());
+        }
+
     </script>
 </body>
 </html>
