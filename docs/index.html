@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <title>Opera Venetia (DH Visualization)</title>
+    <title>Opera Venetia: Comparative Analytics</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- Bibliothèques externes -->
+    <!-- CSS Libs -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -13,46 +13,70 @@
 
     <style>
         :root {
-            --primary: #d62828;       /* Rouge */
-            --secondary: #219ebc;     /* Bleu */
+            /* Palette Sémantique */
+            --primary: #9e2a2b;      /* Recherche A (Rouge historique) */
+            --secondary: #219ebc;    /* Recherche B (Bleu analytique) */
+            --gold: #e09f3e;
+            
+            /* UI Variables */
             --bg-panel: #ffffff;
             --bg-map: #e5e5e5;
-            --text: #333;
+            --text-main: #2b2d42;
             --border: #e9ecef;
+            --bar-bg: #dcdcdc;
+        }
+
+        /* Dark Mode */
+        body.dark-mode {
+            --bg-panel: #1a1a1a;
+            --bg-map: #121212;
+            --text-main: #e0e0e0;
+            --border: #333;
+            --bar-bg: #333;
         }
 
         body {
             margin: 0; padding: 0;
             font-family: 'Lato', sans-serif;
-            color: var(--text);
+            color: var(--text-main);
             background: var(--bg-panel);
             display: grid;
             height: 100vh; width: 100vw;
-            /* Grille : Sidebar gauche, Carte en haut droite, Timeline en bas droite */
-            grid-template-columns: 340px 1fr;
+            grid-template-columns: 340px 1fr; 
             grid-template-rows: 1fr 150px;
             grid-template-areas: "sidebar map" "sidebar timeline";
             overflow: hidden;
+            transition: background 0.3s, color 0.3s;
         }
 
-        /* --- SIDEBAR --- */
+        /* --- 1. SIDEBAR --- */
         #sidebar {
             grid-area: sidebar;
             background: var(--bg-panel);
             border-right: 1px solid var(--border);
             display: flex; flex-direction: column;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.05);
             z-index: 2000;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
         }
 
-        .header-box { padding: 20px; border-bottom: 1px solid var(--border); }
-        .title { font-family: 'Playfair Display'; font-size: 22px; margin: 0; color: var(--primary); }
+        .sidebar-header {
+            padding: 20px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--gold);
+        }
+
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .app-title { font-family: 'Playfair Display', serif; font-size: 22px; margin: 0; color: var(--primary); }
+        .burger-btn { background: none; border: none; font-size: 20px; color: var(--text-main); cursor: pointer; }
+
+        /* Switch Mode Comparaison */
+        .mode-switch-container {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,0.03); padding: 10px; border-radius: 6px;
+        }
+        .switch-label { font-size: 0.9em; font-weight: bold; display: flex; align-items: center; gap: 8px; }
         
-        /* Burger & Switch */
-        .header-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
-        .burger-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: #666; }
-        
-        .mode-switch { display: flex; align-items: center; font-size: 0.9em; font-weight: bold; gap: 10px; }
+        /* Toggle Switch CSS */
         .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider-round { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
@@ -60,106 +84,127 @@
         input:checked + .slider-round { background-color: var(--secondary); }
         input:checked + .slider-round:before { transform: translateX(16px); }
 
-        /* Onglets */
-        .tabs-container { display: none; border-bottom: 1px solid var(--border); background: #f9f9f9; }
+        /* Onglets A/B */
+        .tabs-container { display: none; border-bottom: 1px solid var(--border); }
         body.compare-mode .tabs-container { display: flex; }
-        .tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.85em; opacity: 0.6; border-bottom: 3px solid transparent; }
-        .tab.active { opacity: 1; border-bottom-color: currentColor; background: #fff; }
-        .tab-a.active { color: var(--primary); border-color: var(--primary); }
-        .tab-b.active { color: var(--secondary); border-color: var(--secondary); }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-weight: bold; font-size: 0.9em; border-bottom: 3px solid transparent; opacity: 0.6; transition: 0.3s; }
+        .tab:hover { opacity: 1; background: rgba(0,0,0,0.02); }
+        .tab.active { opacity: 1; border-bottom-color: currentColor; }
+        .tab-a.active { color: var(--primary); background: rgba(158, 42, 43, 0.05); }
+        .tab-b.active { color: var(--secondary); background: rgba(51, 92, 103, 0.05); }
 
-        /* Filtres */
-        .filters-area { flex-grow: 1; overflow-y: auto; padding: 20px; }
-        .search-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 15px; }
+        /* Zone Filtres */
+        .filters-wrapper { flex-grow: 1; overflow-y: auto; padding: 0 20px; }
         
-        .facet-group { margin-bottom: 20px; }
-        .facet-title { font-size: 0.75em; font-weight: bold; text-transform: uppercase; color: #888; margin-bottom: 8px; letter-spacing: 1px; }
-        .checkbox-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; cursor: pointer; font-size: 0.9em; }
-        .checkbox-row:hover { color: var(--primary); }
-        .badge { background: #f0f0f0; padding: 2px 6px; border-radius: 10px; font-size: 0.75em; color: #666; }
+        .search-box { margin: 15px 0; }
+        .search-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: var(--bg-panel); color: var(--text-main); box-sizing: border-box; }
 
-        /* --- MAP --- */
+        /* Accordéons Facettes */
+        .facet-group { border-bottom: 1px solid var(--border); padding: 15px 0; }
+        .facet-header { display: flex; justify-content: space-between; cursor: pointer; font-weight: 700; color: #666; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+        .facet-header:hover { color: var(--primary); }
+        .facet-content { margin-top: 10px; display: none; max-height: 250px; overflow-y: auto; }
+        .facet-content.open { display: block; animation: fadeIn 0.3s; }
+        
+        .checkbox-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; cursor: pointer; }
+        .count-badge { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+
+        .sidebar-footer { padding: 15px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        .btn-reset { background: #f0f0f0; color: #333; }
+        .btn-export { background: var(--text-main); color: #fff; }
+
+        /* --- 2. MAP --- */
         #map { grid-area: map; background: var(--bg-map); z-index: 1; }
-        /* Gestion des points SVG */
-        .leaflet-interactive { mix-blend-mode: multiply; transition: r 0.5s ease-out, fill-opacity 0.3s; }
+        /* Animation fluide des cercles */
+        .leaflet-interactive { mix-blend-mode: multiply; transition: r 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), fill-opacity 0.3s; }
+        /* En Dark Mode, multiply ne marche pas bien, on utilise screen ou normal */
+        body.dark-mode .leaflet-interactive { mix-blend-mode: screen; }
 
-        /* --- TIMELINE --- */
+        /* --- 3. TIMELINE --- */
         #timeline-panel {
-            grid-area: timeline;
-            background: var(--bg-panel);
-            border-top: 1px solid var(--border);
-            padding: 10px 40px;
-            display: flex; flex-direction: column;
-            z-index: 1000;
+            grid-area: timeline; background: var(--bg-panel); border-top: 1px solid var(--border);
+            padding: 10px 40px; display: flex; flex-direction: column; position: relative; z-index: 1000;
         }
 
-        .controls { display: flex; align-items: center; margin-bottom: 5px; }
-        .play-btn {
-            width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--primary);
-            background: none; color: var(--primary); cursor: pointer; margin-right: 15px;
-            display: flex; justify-content: center; align-items: center;
+        .controls-row { display: flex; align-items: center; margin-bottom: 5px; }
+        .play-btn { 
+            width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--primary); color: var(--primary);
+            background: none; cursor: pointer; margin-right: 20px; display: flex; justify-content: center; align-items: center; transition: 0.2s;
         }
         .play-btn:hover { background: var(--primary); color: white; }
-        .date-display { font-family: 'Playfair Display'; font-size: 1.2em; font-weight: bold; margin-right: 20px; }
-        .legend { display: flex; gap: 15px; font-size: 0.85em; font-weight: bold; }
+        
+        .date-display { font-family: 'Playfair Display'; font-size: 1.3em; font-weight: bold; margin-right: 30px; }
+        .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9em; font-weight: bold; margin-right: 20px; }
 
-        /* Histogramme */
-        #histogram { flex-grow: 1; width: 100%; display: flex; align-items: flex-end; margin-bottom: 5px; }
+        /* Histogramme Stacked */
+        #histogram { flex-grow: 1; width: 100%; display: flex; align-items: flex-end; margin-bottom: 5px; height: 60px; }
         .hist-col { flex: 1; height: 100%; margin: 0 1px; position: relative; display: flex; flex-direction: column-reverse; }
-        .bar-bg { position: absolute; bottom: 0; width: 100%; background: #e0e0e0; z-index: 0; transition: height 0.3s; }
-        .bar-a { width: 100%; background: var(--primary); opacity: 0.6; z-index: 2; transition: height 0.3s; }
-        .bar-b { width: 100%; background: var(--secondary); opacity: 0.6; z-index: 1; transition: height 0.3s; display: none; }
+        .bar-bg { position: absolute; bottom:0; width:100%; background: var(--bar-bg); z-index:0; transition: height 0.3s; }
+        .bar-a { width: 100%; background: var(--primary); opacity: 0.7; z-index: 2; transition: height 0.3s; }
+        .bar-b { width: 100%; background: var(--secondary); opacity: 0.7; z-index: 1; transition: height 0.3s; display: none; }
         body.compare-mode .bar-b { display: block; }
 
         /* Slider */
         #time-slider { height: 6px; border: none; background: transparent; }
-        .noUi-connect { background: #888; opacity: 0.3; }
-        .noUi-handle { width: 14px; height: 14px; border-radius: 50%; background: #555; border: 2px solid #fff; top: -4px; right: -7px; cursor: grab; box-shadow: none; }
+        .noUi-connect { background: #666; opacity: 0.3; }
+        .noUi-handle { width: 14px; height: 14px; border-radius: 50%; background: #444; border: 2px solid #fff; top: -4px; right: -7px; cursor: grab; box-shadow: none; }
 
-        /* Menu Overlay */
-        #menu-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:5000; display:none; justify-content:center; align-items:center; }
-        #menu-box { background:white; padding:30px; border-radius:8px; width:400px; max-width:90%; }
-        
-        /* Error Message */
-        #error-banner {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #d62828; color: white; padding: 15px 30px; border-radius: 8px;
-            z-index: 9999; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); text-align: center;
+        /* --- MENU BURGER (MODAL) --- */
+        #menu-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.5); z-index: 5000; display: none;
+            justify-content: center; align-items: center; backdrop-filter: blur(3px);
         }
+        #menu-box {
+            background: var(--bg-panel); width: 400px; max-width: 90%; padding: 30px;
+            border-radius: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        #menu-box h2 { margin-top: 0; font-family: 'Playfair Display'; color: var(--primary); border-bottom: 1px solid var(--gold); padding-bottom: 10px;}
+        .menu-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .close-menu { width: 100%; padding: 12px; background: var(--text-main); color: var(--bg-panel); border: none; cursor: pointer; margin-top: 20px; font-weight: bold; text-transform: uppercase; }
+
+        /* Animation Helper */
+        @keyframes fadeIn { from { opacity:0; transform: translateY(-5px);} to { opacity:1; transform: translateY(0);} }
     </style>
 </head>
 <body>
 
-    <!-- Message d'erreur si les données ne chargent pas -->
-    <div id="error-banner">
-        <strong>Erreur de chargement : sample_operas.geojson</strong><br>
-        <small>Vérifiez que le fichier est dans le même dossier et que vous utilisez un serveur local (pas file://).</small>
-    </div>
-
     <!-- SIDEBAR -->
     <div id="sidebar">
-        <div class="header-box">
-            <h1 class="title">Opera Venetia</h1>
-            <div class="header-controls">
-                <div class="mode-switch">
-                    <span>Comparer (A/B)</span>
-                    <label class="switch">
-                        <input type="checkbox" id="modeToggle" onchange="toggleMode()">
-                        <span class="slider-round"></span>
-                    </label>
-                </div>
+        <div class="sidebar-header">
+            <div class="header-top">
+                <h1 class="app-title">Opera Venetia</h1>
                 <button class="burger-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+            </div>
+
+            <div class="mode-switch-container">
+                <div class="switch-label"><i class="fas fa-balance-scale"></i> Mode Comparaison</div>
+                <label class="switch">
+                    <input type="checkbox" id="modeToggle" onchange="toggleMode()">
+                    <span class="slider-round"></span>
+                </label>
             </div>
         </div>
 
+        <!-- Onglets de Recherche (Visible uniquement en mode Compare) -->
         <div class="tabs-container">
             <div class="tab tab-a active" onclick="switchTab('A')">Recherche A</div>
             <div class="tab tab-b" onclick="switchTab('B')">Recherche B</div>
         </div>
 
-        <div class="filters-area">
-            <input type="text" id="searchInput" class="search-input" placeholder="Rechercher (Titre, Théâtre)..." onkeyup="handleSearch()">
-            <div id="facets-container">Chargement des filtres...</div>
+        <!-- Contenu des filtres -->
+        <div class="filters-wrapper">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Rechercher (Titre, Théâtre)..." onkeyup="handleSearch()">
+            </div>
+            
+            <div id="facets-output">Chargement...</div>
+        </div>
+
+        <div class="sidebar-footer">
+            <button class="btn btn-reset" onclick="resetCurrent()"><i class="fas fa-undo"></i> Reset</button>
+            <button class="btn btn-export" onclick="exportData()"><i class="fas fa-file-csv"></i> Export</button>
         </div>
     </div>
 
@@ -168,33 +213,52 @@
 
     <!-- TIMELINE -->
     <div id="timeline-panel">
-        <div class="controls">
+        <div class="controls-row">
             <button class="play-btn" onclick="togglePlay()"><i id="play-icon" class="fas fa-play"></i></button>
             <div class="date-display" id="date-display">1660 - 1760</div>
-            <div class="legend">
-                <span style="color:var(--primary)"><i class="fas fa-circle"></i> <span id="count-a">0</span></span>
-                <span id="legend-b" style="color:var(--secondary); display:none;"><i class="fas fa-circle"></i> <span id="count-b">0</span></span>
+            
+            <div class="legend-item" style="color:var(--primary)">
+                <i class="fas fa-circle"></i> <span id="count-a">0</span>
+            </div>
+            <div class="legend-item" id="legend-b" style="color:var(--secondary); display:none;">
+                <i class="fas fa-circle"></i> <span id="count-b">0</span>
             </div>
         </div>
+
+        <!-- Histogramme -->
         <div id="histogram"></div>
+        <!-- Slider -->
         <div id="time-slider"></div>
     </div>
 
-    <!-- MENU -->
+    <!-- MENU MODAL -->
     <div id="menu-overlay" onclick="if(event.target==this) toggleMenu()">
         <div id="menu-box">
-            <h2 style="margin-top:0; font-family:'Playfair Display'">Paramètres</h2>
-            <div style="margin:15px 0; display:flex; justify-content:space-between;">
-                <span>Fond de carte</span>
-                <select id="mapStyle" onchange="changeMapStyle(this.value)">
-                    <option value="voyager">Clair (Voyager)</option>
-                    <option value="dark_all">Sombre</option>
-                    <option value="light_all">Minimaliste</option>
+            <h2>Paramètres & Infos</h2>
+            
+            <div class="menu-row">
+                <span><i class="fas fa-moon"></i> Mode Sombre</span>
+                <input type="checkbox" onchange="toggleDarkMode()">
+            </div>
+
+            <div class="menu-row">
+                <span><i class="fas fa-map"></i> Fond de carte</span>
+                <select id="mapStyle" onchange="changeMapStyle(this.value)" style="padding:5px;">
+                    <option value="voyager">Voyager (Clair)</option>
+                    <option value="dark_all">Dark Matter (Sombre)</option>
+                    <option value="light_all">Positron (Minimal)</option>
                 </select>
             </div>
-            <hr>
-            <p><strong>Crédits</strong><br>Développeur DH<br>Données : sample_operas.geojson</p>
-            <button onclick="toggleMenu()" style="width:100%; padding:10px; cursor:pointer;">Fermer</button>
+
+            <div style="margin-top:20px; font-size:0.9em; line-height:1.6;">
+                <strong>À propos</strong><br>
+                Ce tableau de bord permet l'exploration spatio-temporelle du répertoire lyrique vénitien.<br>
+                <br>
+                <strong>Données</strong>: <em>sample_operas.geojson</em><br>
+                <strong>Technologies</strong>: Leaflet, NoUiSlider<br>
+            </div>
+
+            <button class="close-menu" onclick="toggleMenu()">Fermer</button>
         </div>
     </div>
 
@@ -203,55 +267,53 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
 
     <script>
-        // --- CONFIG ---
+        // --- CONFIGURATION ---
         const CONFIG = { min: 1660, max: 1760 };
+        
+        // Etat Global de l'application
         let state = {
-            mode: 'simple',
+            mode: 'simple', // 'simple' | 'compare'
             activeTab: 'A',
             queries: { A: { filters: {}, search: "" }, B: { filters: {}, search: "" } },
+            results: { A: [], B: [] },
             range: [1660, 1760],
             data: [],
-            results: { A: [], B: [] },
             isPlaying: false
         };
 
-        let map, layerA, layerB, tileLayer, slider, playInterval;
+        let map, tileLayer, slider, playInterval;
+        // Groupes de layers pour gérer l'animation
+        let layers = { A: L.layerGroup(), B: L.layerGroup() };
+        // Stockage des marqueurs individuels pour update radius (Key = TheatreName)
+        let markersRef = { A: {}, B: {} };
 
         // --- INITIALISATION ---
         document.addEventListener("DOMContentLoaded", () => {
-            
-            // 1. Setup Map
+            // 1. Carte
             map = L.map('map', { zoomControl: false }).setView([45.437, 12.335], 14);
             L.control.zoom({ position: 'topright' }).addTo(map);
             changeMapStyle('voyager');
+            layers.A.addTo(map);
+            layers.B.addTo(map);
 
-            layerA = L.layerGroup().addTo(map);
-            layerB = L.layerGroup().addTo(map);
-
-            // 2. Charger les données
+            // 2. Chargement Données
             fetch('sample_operas.geojson')
-                .then(response => {
-                    if (!response.ok) throw new Error("HTTP error " + response.status);
-                    return response.json();
+                .then(r => {
+                    if(!r.ok) throw new Error("Fichier non trouvé");
+                    return r.json();
                 })
                 .then(data => {
-                    if (data.features) {
-                        state.data = data.features;
-                        console.log("Données chargées : ", state.data.length + " opéras.");
-                        initApp();
-                    } else {
-                        throw new Error("Format GeoJSON incorrect (pas de features).");
-                    }
+                    state.data = data.features;
+                    initApp();
                 })
                 .catch(err => {
                     console.error(err);
-                    document.getElementById('error-banner').style.display = 'block';
-                    document.getElementById('error-banner').innerHTML += `<br>Détail: ${err.message}`;
+                    alert("Erreur : sample_operas.geojson introuvable. Vérifiez votre serveur local.");
                 });
         });
 
         function initApp() {
-            // Slider UI
+            // Slider
             slider = noUiSlider.create(document.getElementById('time-slider'), {
                 start: [CONFIG.min, CONFIG.max],
                 connect: true,
@@ -262,200 +324,259 @@
             slider.on('update', (v) => {
                 state.range = [Math.round(v[0]), Math.round(v[1])];
                 document.getElementById('date-display').innerText = `${state.range[0]} - ${state.range[1]}`;
-                updateAll();
+                updateDashboard();
             });
 
-            // Histogramme DOM
-            const histContainer = document.getElementById('histogram');
-            for(let y = CONFIG.min; y <= CONFIG.max; y++) {
-                let col = document.createElement('div');
-                col.className = 'hist-col';
-                col.id = 'h-' + y;
-                col.innerHTML = `<div class="bar-bg"></div><div class="bar-a"></div><div class="bar-b"></div>`;
-                histContainer.appendChild(col);
+            // Histogramme (DOM)
+            const hContainer = document.getElementById('histogram');
+            for(let y=CONFIG.min; y<=CONFIG.max; y++) {
+                let d = document.createElement('div');
+                d.className = 'hist-col';
+                d.id = 'h-'+y;
+                d.innerHTML = `<div class="bar-bg"></div><div class="bar-a"></div><div class="bar-b"></div>`;
+                hContainer.appendChild(d);
             }
 
-            // UI Facettes
             renderFacets();
-            
-            // Premier Rendu
-            updateAll();
+            updateDashboard();
         }
 
         // --- LOGIQUE ---
-
         function toggleMode() {
             state.mode = document.getElementById('modeToggle').checked ? 'compare' : 'simple';
             document.body.classList.toggle('compare-mode', state.mode === 'compare');
-            document.getElementById('legend-b').style.display = state.mode === 'compare' ? 'inline' : 'none';
+            document.getElementById('legend-b').style.display = state.mode === 'compare' ? 'inline-flex' : 'none';
             
-            if (state.mode === 'simple') switchTab('A');
-            updateAll();
+            if(state.mode === 'simple') switchTab('A');
+            updateDashboard();
         }
 
         function switchTab(tab) {
             state.activeTab = tab;
-            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            document.querySelector('.tab-' + tab.toLowerCase()).classList.add('active');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab-${tab.toLowerCase()}`).classList.add('active');
             
-            // Restaurer l'état de l'input recherche
+            // Restaurer la recherche et les facettes
             document.getElementById('searchInput').value = state.queries[tab].search;
-            renderFacets();
+            renderFacets(); 
         }
 
-        function updateAll() {
-            // 1. Filtrage
+        function handleSearch() {
+            state.queries[state.activeTab].search = document.getElementById('searchInput').value.toLowerCase();
+            updateDashboard();
+        }
+
+        function toggleFilter(key, val, checked) {
+            const q = state.queries[state.activeTab];
+            if(!q.filters[key]) q.filters[key] = new Set();
+            checked ? q.filters[key].add(val) : q.filters[key].delete(val);
+            updateDashboard();
+        }
+
+        // --- MOTEUR DE RENDU ---
+        function updateDashboard() {
+            // 1. Calculer les résultats
             state.results.A = filterData(state.queries.A);
             state.results.B = state.mode === 'compare' ? filterData(state.queries.B) : [];
 
-            // 2. Carte
-            drawMap();
+            // 2. Mettre à jour la Carte (Animation)
+            updateMapLayer('A', state.results.A, '#9e2a2b');
+            updateMapLayer('B', state.results.B, '#219ebc');
 
             // 3. Histogramme
-            drawHistogram();
+            updateHistogram();
 
             // 4. Compteurs
             document.getElementById('count-a').innerText = state.results.A.length;
             document.getElementById('count-b').innerText = state.results.B.length;
         }
 
-        function filterData(query) {
-            const [start, end] = state.range;
+        function filterData(q) {
+            const [s, e] = state.range;
             return state.data.filter(f => {
                 const p = f.properties;
-                // Filtre temps
-                if (p.annee < start || p.annee > end) return false;
-                // Filtre recherche
-                if (query.search) {
-                    const fullText = (p.titre + " " + p.theatre + " " + p.compositeur).toLowerCase();
-                    if (!fullText.includes(query.search)) return false;
+                // Temps
+                if(p.annee < s || p.annee > e) return false;
+                // Recherche
+                if(q.search) {
+                    const txt = (p.titre + " " + p.theatre + " " + p.compositeur).toLowerCase();
+                    if(!txt.includes(q.search)) return false;
                 }
-                // Filtre facettes
-                for (let key in query.filters) {
-                    if (query.filters[key].size > 0 && !query.filters[key].has(p[key])) return false;
+                // Facettes
+                for(let k in q.filters) {
+                    if(q.filters[k].size > 0 && !q.filters[k].has(p[k])) return false;
                 }
                 return true;
             });
         }
 
-        // --- VISUALISATION ---
+        // --- VISUALISATION (CARTE & ANIMATION) ---
+        function updateMapLayer(layerKey, dataset, color) {
+            const group = layers[layerKey];
+            const refs = markersRef[layerKey];
+            
+            // Agrégation
+            let venues = {};
+            // Initialiser tous les théâtres connus à 0 pour permettre le rétrécissement
+            // (Dans une vraie app, on ferait ça plus proprement avec une liste fixe de lieux)
+            Object.keys(refs).forEach(k => venues[k] = {count:0, coords: refs[k].getLatLng(), list:[]});
 
-        function drawMap() {
-            layerA.clearLayers();
-            layerB.clearLayers();
-
-            const renderLayer = (dataset, layer, color) => {
-                // Agrégation spatiale
-                let venues = {};
-                dataset.forEach(f => {
-                    let t = f.properties.theatre;
-                    if (!venues[t]) venues[t] = { ...f.geometry, count: 0, list: [] };
-                    venues[t].count++;
-                    venues[t].list.push(f.properties.titre);
-                });
-
-                // Dessin des points
-                for (let key in venues) {
-                    let v = venues[key];
-                    // GeoJSON est [Lng, Lat], Leaflet veut [Lat, Lng]
-                    let latlng = [v.coordinates[1], v.coordinates[0]]; 
-                    let r = Math.sqrt(v.count) * 5 + 3;
-                    
-                    L.circleMarker(latlng, {
-                        radius: r, color: color, fillColor: color, fillOpacity: 0.6, weight: 1
-                    })
-                    .bindPopup(`<b>${key}</b><br>${v.count} opéras<br><small>${v.list.slice(0,3).join(', ')}...</small>`)
-                    .addTo(layer);
-                }
-            };
-
-            if (state.results.A.length) renderLayer(state.results.A, layerA, '#d62828');
-            if (state.results.B.length) renderLayer(state.results.B, layerB, '#219ebc');
-        }
-
-        function drawHistogram() {
-            // Stats globales pour l'échelle (Background)
-            let globalCounts = {}, maxVal = 0;
-            state.data.forEach(f => {
-                globalCounts[f.properties.annee] = (globalCounts[f.properties.annee] || 0) + 1;
-                if (globalCounts[f.properties.annee] > maxVal) maxVal = globalCounts[f.properties.annee];
+            dataset.forEach(f => {
+                let t = f.properties.theatre;
+                if(!venues[t]) venues[t] = { count:0, coords: [f.geometry.coordinates[1], f.geometry.coordinates[0]], list:[] };
+                venues[t].count++;
+                venues[t].list.push(f.properties);
             });
 
-            // Stats filtrées (sans restriction temporelle pour voir la distribution)
-            const getDistribution = (query) => {
-                let counts = {};
+            // Dessin / Mise à jour
+            Object.keys(venues).forEach(key => {
+                let v = venues[key];
+                let r = v.count > 0 ? Math.sqrt(v.count) * 6 + 2 : 0; // Rayon cible
+
+                if (refs[key]) {
+                    // Le marqueur existe, on change son rayon (CSS transition fera le reste)
+                    refs[key].setRadius(r);
+                    if(v.count > 0) refs[key].bindPopup(buildPopup(key, v));
+                } else if (v.count > 0) {
+                    // Création
+                    let m = L.circleMarker(v.coords, {
+                        radius: 0, color: color, fillColor: color, fillOpacity: 0.6, weight: 1
+                    });
+                    m.bindPopup(buildPopup(key, v));
+                    m.addTo(group);
+                    refs[key] = m;
+                    setTimeout(() => m.setRadius(r), 10); // Animation entrée
+                }
+            });
+        }
+
+        function buildPopup(title, data) {
+            let html = `<strong>${title}</strong><br>${data.count} opéras<br><hr style="margin:5px 0; border:0; border-top:1px solid #eee">`;
+            data.list.slice(0,5).forEach(o => html += `<div style="font-size:0.9em">${o.annee}: ${o.titre}</div>`);
+            if(data.list.length > 5) html += `<em>...et ${data.list.length-5} autres</em>`;
+            return html;
+        }
+
+        // --- HISTOGRAMME ---
+        function updateHistogram() {
+            // Echelle Globale
+            let globalCounts = {}, max = 0;
+            state.data.forEach(f => {
+                globalCounts[f.properties.annee] = (globalCounts[f.properties.annee]||0)+1;
+                if(globalCounts[f.properties.annee] > max) max = globalCounts[f.properties.annee];
+            });
+
+            // Distribution des filtres (sans limite de temps)
+            const getDist = (q) => {
+                let c = {};
                 state.data.filter(f => {
-                    // Appliquer Search et Facettes, mais PAS l'année
-                    if (query.search && !(f.properties.titre + "").toLowerCase().includes(query.search)) return false;
-                    for (let k in query.filters) {
-                        if (query.filters[k].size > 0 && !query.filters[k].has(f.properties[k])) return false;
-                    }
+                    if(q.search && !(f.properties.titre+"").toLowerCase().includes(q.search)) return false;
+                    for(let k in q.filters) if(q.filters[k].size && !q.filters[k].has(f.properties[k])) return false;
                     return true;
-                }).forEach(f => counts[f.properties.annee] = (counts[f.properties.annee] || 0) + 1);
-                return counts;
+                }).forEach(f => c[f.properties.annee] = (c[f.properties.annee]||0)+1);
+                return c;
             };
 
-            let countsA = getDistribution(state.queries.A);
-            let countsB = state.mode === 'compare' ? getDistribution(state.queries.B) : {};
+            let cA = getDist(state.queries.A);
+            let cB = state.mode === 'compare' ? getDist(state.queries.B) : {};
 
-            for (let y = CONFIG.min; y <= CONFIG.max; y++) {
-                let col = document.getElementById('h-' + y);
-                let hBg = maxVal ? (globalCounts[y] || 0) / maxVal * 100 : 0;
-                let hA = maxVal ? (countsA[y] || 0) / maxVal * 100 : 0;
-                let hB = maxVal ? (countsB[y] || 0) / maxVal * 100 : 0;
-
-                col.querySelector('.bar-bg').style.height = hBg + '%';
-                col.querySelector('.bar-a').style.height = hA + '%';
-                col.querySelector('.bar-b').style.height = hB + '%';
-
-                // Opacité hors plage
-                let inRange = (y >= state.range[0] && y <= state.range[1]);
-                col.style.opacity = inRange ? 1 : 0.3;
+            for(let y=CONFIG.min; y<=CONFIG.max; y++) {
+                let el = document.getElementById('h-'+y);
+                let hBg = max ? (globalCounts[y]||0)/max*100 : 0;
+                let hA  = max ? (cA[y]||0)/max*100 : 0;
+                let hB  = max ? (cB[y]||0)/max*100 : 0;
+                
+                el.querySelector('.bar-bg').style.height = hBg+'%';
+                el.querySelector('.bar-a').style.height = hA+'%';
+                el.querySelector('.bar-b').style.height = hB+'%';
+                
+                // Griser hors période
+                el.style.opacity = (y >= state.range[0] && y <= state.range[1]) ? 1 : 0.3;
             }
         }
 
-        // --- UI HELPERS ---
+        // --- UI GENERATION ---
+        const FACETS = [
+            {key:'theatre', label:'Théâtres'}, 
+            {key:'compositeur', label:'Compositeurs'}, 
+            {key:'librettiste', label:'Librettistes'}
+        ];
 
         function renderFacets() {
-            const container = document.getElementById('facets-container');
+            const container = document.getElementById('facets-output');
+            // On sauvegarde l'état d'ouverture des accordéons si possible, sinon reset simple
+            // Pour simplifier ici: on reconstruit l'intérieur.
             container.innerHTML = '';
-            const query = state.queries[state.activeTab];
+            
+            const q = state.queries[state.activeTab];
 
-            ['theatre', 'compositeur', 'librettiste'].forEach(cat => {
-                // Compter les occurrences
+            FACETS.forEach(facet => {
+                // Comptes
                 let counts = {};
                 state.data.forEach(f => {
-                    if (f.properties[cat]) counts[f.properties[cat]] = (counts[f.properties[cat]] || 0) + 1;
+                    let v = f.properties[facet.key];
+                    if(v) counts[v] = (counts[v]||0)+1;
                 });
 
                 let group = document.createElement('div');
                 group.className = 'facet-group';
-                group.innerHTML = `<div class="facet-title">${cat}</div>`;
+                
+                // Header
+                let header = document.createElement('div');
+                header.className = 'facet-header';
+                header.innerHTML = `<span>${facet.label}</span> <i class="fas fa-chevron-down"></i>`;
+                
+                // Content
+                let content = document.createElement('div');
+                content.className = 'facet-content';
+                // On ouvre le premier par défaut si on veut, ou aucun
+                header.onclick = () => {
+                    content.classList.toggle('open');
+                    header.querySelector('i').className = content.classList.contains('open') ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+                };
 
                 Object.keys(counts).sort().forEach(val => {
-                    let isChecked = query.filters[cat] && query.filters[cat].has(val);
+                    let checked = q.filters[facet.key] && q.filters[facet.key].has(val);
                     let row = document.createElement('div');
-                    row.className = 'checkbox-row';
+                    row.className = 'checkbox-item';
                     row.innerHTML = `
-                        <label style="display:flex; align-items:center; width:100%; cursor:pointer;">
-                            <input type="checkbox" ${isChecked ? 'checked' : ''} style="margin-right:8px"> ${val}
-                        </label>
-                        <span class="badge">${counts[val]}</span>
+                        <div style="display:flex; align-items:center">
+                            <input type="checkbox" ${checked?'checked':''} style="margin-right:8px"> ${val}
+                        </div>
+                        <span class="count-badge">${counts[val]}</span>
                     `;
-                    row.querySelector('input').onchange = (e) => {
-                        if (!query.filters[cat]) query.filters[cat] = new Set();
-                        e.target.checked ? query.filters[cat].add(val) : query.filters[cat].delete(val);
-                        updateAll();
-                    };
-                    group.appendChild(row);
+                    row.querySelector('input').onchange = (e) => toggleFilter(facet.key, val, e.target.checked);
+                    content.appendChild(row);
                 });
+
+                group.appendChild(header);
+                group.appendChild(content);
                 container.appendChild(group);
             });
         }
 
-        function handleSearch() {
-            state.queries[state.activeTab].search = document.getElementById('searchInput').value.toLowerCase();
-            updateAll();
+        // --- OUTILS ---
+        function resetCurrent() {
+            state.queries[state.activeTab] = { filters: {}, search: "" };
+            switchTab(state.activeTab);
+            updateDashboard();
+        }
+
+        function exportData() {
+            // Export des données actives (A si simple, ou A+B si compare? faisons Simple: exporte la vue active)
+            let dataToExport = state.results[state.activeTab];
+            if(!dataToExport.length) return alert("Aucune donnée visible.");
+            
+            let keys = Object.keys(dataToExport[0].properties);
+            let csv = keys.join(",") + "\n";
+            dataToExport.forEach(f => {
+                csv += keys.map(k => `"${(f.properties[k]||"").toString().replace(/"/g, '""')}"`).join(",") + "\n";
+            });
+            
+            let link = document.createElement("a");
+            link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+            link.download = `opera_export_${state.activeTab}.csv`;
+            link.click();
         }
 
         function toggleMenu() {
@@ -463,26 +584,32 @@
             el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
         }
 
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            let isDark = document.body.classList.contains('dark-mode');
+            changeMapStyle(isDark ? 'dark_all' : 'voyager');
+        }
+
         function changeMapStyle(style) {
-            if (tileLayer) map.removeLayer(tileLayer);
+            if(tileLayer) map.removeLayer(tileLayer);
             tileLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`, {
                 attribution: '&copy; CARTO'
             }).addTo(map);
-            layerA.bringToFront(); layerB.bringToFront();
+            layers.A.bringToFront(); layers.B.bringToFront();
         }
 
         function togglePlay() {
             state.isPlaying = !state.isPlaying;
-            let icon = document.getElementById('play-icon');
-            icon.className = state.isPlaying ? "fas fa-pause" : "fas fa-play";
-
-            if (state.isPlaying) {
+            let btn = document.getElementById('play-icon');
+            btn.className = state.isPlaying ? "fas fa-pause" : "fas fa-play";
+            
+            if(state.isPlaying) {
                 let span = state.range[1] - state.range[0];
-                let cursor = state.range[0];
+                let cur = state.range[0];
                 playInterval = setInterval(() => {
-                    cursor++;
-                    if (cursor + span > CONFIG.max) return togglePlay();
-                    slider.set([cursor, cursor + span]);
+                    cur++;
+                    if(cur + span > CONFIG.max) return togglePlay();
+                    slider.set([cur, cur+span]);
                 }, 800);
             } else {
                 clearInterval(playInterval);
