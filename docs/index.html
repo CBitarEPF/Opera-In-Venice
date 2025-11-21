@@ -5,7 +5,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- CSS Libs -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -170,7 +169,6 @@
 </head>
 <body>
 
-    <!-- SIDEBAR -->
     <div id="sidebar">
         <div class="sidebar-header">
             <div class="header-top">
@@ -187,16 +185,14 @@
             </div>
         </div>
 
-        <!-- Onglets de Recherche (Visible uniquement en mode Compare) -->
         <div class="tabs-container">
             <div class="tab tab-a active" onclick="switchTab('A')">Recherche A</div>
             <div class="tab tab-b" onclick="switchTab('B')">Recherche B</div>
         </div>
 
-        <!-- Contenu des filtres -->
         <div class="filters-wrapper">
             <div class="search-box">
-                <input type="text" id="searchInput" class="search-input" placeholder="Rechercher (Titre, Théâtre)..." onkeyup="handleSearch()">
+                <input type="text" id="searchInput" class="search-input" placeholder="Rechercher (Titre, Théâtre, Compositeur)..." onkeyup="handleSearch()">
             </div>
             
             <div id="facets-output">Chargement...</div>
@@ -208,10 +204,8 @@
         </div>
     </div>
 
-    <!-- MAP -->
     <div id="map"></div>
 
-    <!-- TIMELINE -->
     <div id="timeline-panel">
         <div class="controls-row">
             <button class="play-btn" onclick="togglePlay()"><i id="play-icon" class="fas fa-play"></i></button>
@@ -225,20 +219,17 @@
             </div>
         </div>
 
-        <!-- Histogramme -->
         <div id="histogram"></div>
-        <!-- Slider -->
         <div id="time-slider"></div>
     </div>
 
-    <!-- MENU MODAL -->
     <div id="menu-overlay" onclick="if(event.target==this) toggleMenu()">
         <div id="menu-box">
             <h2>Paramètres & Infos</h2>
             
             <div class="menu-row">
                 <span><i class="fas fa-moon"></i> Mode Sombre</span>
-                <input type="checkbox" onchange="toggleDarkMode()">
+                <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()">
             </div>
 
             <div class="menu-row">
@@ -262,7 +253,6 @@
         </div>
     </div>
 
-    <!-- SCRIPTS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
 
@@ -292,7 +282,11 @@
             // 1. Carte
             map = L.map('map', { zoomControl: false }).setView([45.437, 12.335], 14);
             L.control.zoom({ position: 'topright' }).addTo(map);
-            changeMapStyle('voyager');
+            
+            // Initialisation du fond de carte (vérifie si le dark mode est actif via la checkbox)
+            const isDarkInitial = document.body.classList.contains('dark-mode');
+            changeMapStyle(isDarkInitial ? 'dark_all' : 'voyager');
+            
             layers.A.addTo(map);
             layers.B.addTo(map);
 
@@ -336,6 +330,9 @@
                 d.innerHTML = `<div class="bar-bg"></div><div class="bar-a"></div><div class="bar-b"></div>`;
                 hContainer.appendChild(d);
             }
+            
+            // Initialisation de la checkbox du mode sombre dans le menu modal
+            document.getElementById('darkModeToggle').checked = document.body.classList.contains('dark-mode');
 
             renderFacets();
             updateDashboard();
@@ -358,6 +355,7 @@
             
             // Restaurer la recherche et les facettes
             document.getElementById('searchInput').value = state.queries[tab].search;
+            // Correction 1.b: Rafraîchir l'affichage des filtres pour l'onglet actif
             renderFacets(); 
         }
 
@@ -397,13 +395,16 @@
                 const p = f.properties;
                 // Temps
                 if(p.annee < s || p.annee > e) return false;
-                // Recherche
+                
+                // Recherche (CORRECTION 1.a: Ajout de la recherche sur theatre et compositeur)
                 if(q.search) {
-                    const txt = (p.titre + " " + p.theatre + " " + p.compositeur).toLowerCase();
+                    const txt = (p.titre + " " + (p.theatre || '') + " " + (p.compositeur || '')).toLowerCase();
                     if(!txt.includes(q.search)) return false;
                 }
+                
                 // Facettes
                 for(let k in q.filters) {
+                    // Utilise .has() pour vérifier l'existence dans le Set des filtres actifs
                     if(q.filters[k].size > 0 && !q.filters[k].has(p[k])) return false;
                 }
                 return true;
@@ -418,8 +419,12 @@
             // Agrégation
             let venues = {};
             // Initialiser tous les théâtres connus à 0 pour permettre le rétrécissement
-            // (Dans une vraie app, on ferait ça plus proprement avec une liste fixe de lieux)
-            Object.keys(refs).forEach(k => venues[k] = {count:0, coords: refs[k].getLatLng(), list:[]});
+            Object.keys(refs).forEach(k => {
+                // S'assurer que le marqueur est toujours sur la carte même avec count 0 pour l'animation
+                venues[k] = {count:0, coords: refs[k].getLatLng(), list:[]};
+                // Si count est 0, on met le rayon à 0 pour l'animation de rétrécissement
+                refs[k].setRadius(0);
+            });
 
             dataset.forEach(f => {
                 let t = f.properties.theatre;
@@ -448,6 +453,14 @@
                     setTimeout(() => m.setRadius(r), 10); // Animation entrée
                 }
             });
+            
+            // S'assurer que les marqueurs sans données sont retirés de la carte pour éviter les résidus
+            Object.keys(refs).forEach(k => {
+                if(!venues[k] && refs[k]) {
+                    group.removeLayer(refs[k]);
+                    delete refs[k];
+                }
+            });
         }
 
         function buildPopup(title, data) {
@@ -470,8 +483,17 @@
             const getDist = (q) => {
                 let c = {};
                 state.data.filter(f => {
-                    if(q.search && !(f.properties.titre+"").toLowerCase().includes(q.search)) return false;
-                    for(let k in q.filters) if(q.filters[k].size && !q.filters[k].has(f.properties[k])) return false;
+                    // Réutilise la logique de filtre sans la contrainte de temps (déjà gérée par le slider)
+                    const p = f.properties;
+                    
+                    if(q.search) {
+                        const txt = (p.titre + " " + (p.theatre || '') + " " + (p.compositeur || '')).toLowerCase();
+                        if(!txt.includes(q.search)) return false;
+                    }
+                    
+                    for(let k in q.filters) {
+                        if(q.filters[k].size > 0 && !q.filters[k].has(p[k])) return false;
+                    }
                     return true;
                 }).forEach(f => c[f.properties.annee] = (c[f.properties.annee]||0)+1);
                 return c;
@@ -504,14 +526,12 @@
 
         function renderFacets() {
             const container = document.getElementById('facets-output');
-            // On sauvegarde l'état d'ouverture des accordéons si possible, sinon reset simple
-            // Pour simplifier ici: on reconstruit l'intérieur.
             container.innerHTML = '';
             
             const q = state.queries[state.activeTab];
 
             FACETS.forEach(facet => {
-                // Comptes
+                // Comptes (Comptes globaux, ou on pourrait faire les comptes selon la recherche active - ici: global)
                 let counts = {};
                 state.data.forEach(f => {
                     let v = f.properties[facet.key];
@@ -529,7 +549,7 @@
                 // Content
                 let content = document.createElement('div');
                 content.className = 'facet-content';
-                // On ouvre le premier par défaut si on veut, ou aucun
+                
                 header.onclick = () => {
                     content.classList.toggle('open');
                     header.querySelector('i').className = content.classList.contains('open') ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
@@ -558,7 +578,9 @@
         // --- OUTILS ---
         function resetCurrent() {
             state.queries[state.activeTab] = { filters: {}, search: "" };
-            switchTab(state.activeTab);
+            // Correction 1.a: Réinitialiser l'input de recherche et rafraîchir les facettes
+            document.getElementById('searchInput').value = "";
+            renderFacets(); 
             updateDashboard();
         }
 
@@ -587,6 +609,8 @@
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             let isDark = document.body.classList.contains('dark-mode');
+            // Met à jour l'état de la checkbox dans le modal
+            document.getElementById('darkModeToggle').checked = isDark; 
             changeMapStyle(isDark ? 'dark_all' : 'voyager');
         }
 
@@ -608,7 +632,11 @@
                 let cur = state.range[0];
                 playInterval = setInterval(() => {
                     cur++;
-                    if(cur + span > CONFIG.max) return togglePlay();
+                    // Si l'année de fin de la fenêtre glissante dépasse la limite max
+                    if(cur + span > CONFIG.max) {
+                        togglePlay(); // Arrête la lecture
+                        return;
+                    }
                     slider.set([cur, cur+span]);
                 }, 800);
             } else {
