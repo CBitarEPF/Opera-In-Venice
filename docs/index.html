@@ -504,6 +504,9 @@
 
             for(let y=CONFIG.min; y<=CONFIG.max; y++) {
                 let el = document.getElementById('h-'+y);
+
+                if (!el) continue; // added
+                
                 let hBg = max ? (globalCounts[y]||0)/max*100 : 0;
                 let hA  = max ? (cA[y]||0)/max*100 : 0;
                 let hB  = max ? (cB[y]||0)/max*100 : 0;
@@ -619,7 +622,7 @@
             tileLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`, {
                 attribution: '&copy; CARTO'
             }).addTo(map);
-            layers.A.bringToFront(); layers.B.bringToFront();
+            // layers.A.bringToFront(); layers.B.bringToFront();
         }
 
         function togglePlay() {
