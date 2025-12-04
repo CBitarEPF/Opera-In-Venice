@@ -4,6 +4,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 1,
         "titre": "Demetrio",
         "compositeur": "Carlo Pallavicino",
         "librettiste": "Giacomo dall' Angelo",
@@ -20,6 +21,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 2,
         "titre": "L'Orontea",
         "compositeur": "Antonio Cesti",
         "librettiste": "Giacinto Andrea Cicognini",
@@ -36,6 +38,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 3,
         "titre": "La Zenobia",
         "compositeur": "Giovanni Antonio Boretti",
         "librettiste": "Matteo Noris",
@@ -52,6 +55,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 4,
         "titre": "Seleuco",
         "compositeur": "Antonio Sartorio",
         "librettiste": "Nicolò Minato",
@@ -68,6 +72,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 5,
         "titre": "Il Tito",
         "compositeur": "Antonio Cesti",
         "librettiste": "Nicolò Beregan",
@@ -84,6 +89,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 6,
         "titre": "Il Giasone",
         "compositeur": "Francesco Cavalli",
         "librettiste": "Giacinto Andrea Cicognini",
@@ -100,6 +106,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 7,
         "titre": "L'Aureliano",
         "compositeur": "Carlo Pallavicino",
         "librettiste": "Count Giacomo dall' Angelo",
@@ -116,6 +123,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 8,
         "titre": "Pompeo Magno",
         "compositeur": "Francesco Cavalli",
         "librettiste": "Nicolò Minato",
@@ -132,6 +140,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 9,
         "titre": "L'Alciade",
         "compositeur": "Pietr' Andrea Ziani",
         "librettiste": "Giovanni Faustini",
@@ -148,6 +157,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 10,
         "titre": "La Dori, overo Lo schiavo reggio",
         "compositeur": "Antonio Cesti",
         "librettiste": "Giovanni Filippo Apolloni",
@@ -164,6 +174,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 11,
         "titre": "La prosperita d'Elio Seiano",
         "compositeur": "Antonio Sartorio",
         "librettiste": "Nicolò Minato",
@@ -180,6 +191,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 12,
         "titre": "L' Alessandro amante",
         "compositeur": "Giovanni Antonio Boretti",
         "librettiste": "Giacinto Andrea Cicognini, rev. Sebastian Enno",
@@ -196,6 +208,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 13,
         "titre": "La caduta d'Elio Seiano",
         "compositeur": "Antonio Sartorio",
         "librettiste": "Nicolò Minato",
@@ -212,6 +225,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 14,
         "titre": "I tiranno umiliato d'Amore",
         "compositeur": "Carlo Pallavicino",
         "librettiste": "Giovanni Faustini, rev. Nicolo Beregan",
@@ -228,6 +242,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 15,
         "titre": "Eliogabalo",
         "compositeur": "Giovanni Antonio Boretti",
         "librettiste": "Aurelio Aureli",
@@ -244,6 +259,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 16,
         "titre": "Seleuco",
         "compositeur": "Antonio Sartorio",
         "librettiste": "Nicolò Minato",
@@ -260,6 +276,7 @@
     {
       "type": "Feature",
       "properties": {
+        "id": 17,
         "titre": "L'Artaserse",
         "compositeur": "Antonio Cesti",
         "librettiste": "Aurelio Aureli",
