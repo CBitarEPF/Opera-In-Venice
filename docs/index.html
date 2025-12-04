@@ -314,7 +314,7 @@
                 <button class="burger-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
             </div>
 
-            <div class="mode-switch-container">
+            <div class="mode-switch-container" id = "modeSwitch">
                 <div class="switch-label"><i class="fas fa-balance-scale"></i> Mode Comparaison</div>
                 <label class="switch">
                     <input type="checkbox" id="modeToggle" onchange="toggleMode()">
@@ -493,7 +493,9 @@
             results: { A: [], B: [] },
             range: [1660, 1760],
             data: [],
-            isPlaying: false
+            isPlaying: false,
+            entityFilterIDs: new Set(),
+            isEntityFilterActive: false,
         };
 
 
@@ -532,6 +534,31 @@
                 });
         });
 
+        let OPERA_METADATA = {};
+
+        // --- NOUVELLE LOGIQUE DE CHARGEMENT DES METADONNÉES D'OPÉRA ---
+        function loadOperaMetadata() {
+            fetch('sample_operas.geojson')
+                .then(response => {
+                    if (!response.ok) throw new Error("sample_operas.geojson non trouvé ou illisible.");
+                    return response.json();
+                })
+                .then(geojson => {
+                    geojson.features.forEach(feature => {
+                        const props = feature.properties;
+                        // Index the data by the opera ID
+                        OPERA_METADATA[props.id] = {
+                            titre: props.titre,
+                            annee: props.annee
+                        };
+                    });
+                    console.log("Métadonnées des opéras chargées:", Object.keys(OPERA_METADATA).length);
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement des données d'opéras:", error);
+                });
+        }
+
         function initApp() {
             // Slider
             slider = noUiSlider.create(document.getElementById('time-slider'), {
@@ -557,6 +584,8 @@
                 hContainer.appendChild(d);
             }
 
+            loadOperaMetadata();
+
             loadEntitiesData();
             
             // Initialisation de la checkbox du mode sombre dans le menu modal
@@ -565,6 +594,8 @@
             renderFacets();
             updateDashboard();
         }
+
+
 
         // LOGIQUE
         function toggleMode() {
@@ -577,6 +608,11 @@
 
             if(state.mode === 'simple') switchTab('A');
             updateDashboard();
+        }
+
+        function updateView() {
+            const container = document.getElementById('modeSwitch');
+            container.style.display = (state.currentView === 'operas') ? 'flex' : 'none';
         }
 
         function switchTab(tab) {
@@ -604,8 +640,29 @@
 
         // LOGIQUE DE NAVIGATION DE LA SIDEBAR
         function switchSidebarTab(tabName) {
-            // Modifier l'état de l'onglet
-            state.currentView = tabName
+
+            // Réinitialiser tous les filtres, modes, etc.
+            if (state.currentView === 'entities') {
+                document.getElementById('entity-list-view').style.display = 'block';
+                document.getElementById('entity-detail-view').style.display = 'none';
+            }
+
+            state.currentView = tabName;
+
+            resetCurrent();
+
+            if (state.mode === 'compare') {
+                state.mode = 'simple';
+                const tabsContainer = document.querySelector('.tabs-container');
+                tabsContainer.style.display = 'none';
+            }
+
+            state.queries = { A: { filters: {}, search: "" }, B: { filters: {}, search: "" } };
+            state.isEntityFilterActive = false;
+            state.entityFilterIDs.clear();
+            updateView();
+            updateDashboard();
+
             
             // Désactiver tous les onglets de navigation
             document.querySelectorAll('.sidebar-nav .nav-tab').forEach(t => t.classList.remove('active'));
@@ -737,9 +794,15 @@
         // --- LOGIQUE DE VUE DÉTAILLÉE DES ENTITÉS (Fonctions utilitaires) ---
 
         function showEntityList() {
+           // 1. Désactiver le filtre d'entité et vider le Set d'IDs
+            state.isEntityFilterActive = false;
+            state.entityFilterIDs.clear(); 
+            
             // Affiche la liste des entités (vue par défaut)
             document.getElementById('entity-list-view').style.display = 'block';
             document.getElementById('entity-detail-view').style.display = 'none';
+
+            updateDashboard();
         }
 
         function showEntityDetail() {
@@ -753,7 +816,6 @@
             listContainer.innerHTML = '';
             
             // Convert entries object (key=ID, value=Context Array) to a sorted array for display
-            // Sort numerically by ID
             const entryIDs = Object.keys(entries).sort((a, b) => parseInt(a) - parseInt(b));
 
             if (entryIDs.length === 0) {
@@ -765,13 +827,23 @@
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'entry-item';
 
+                // NOUVEAU: Récupération des métadonnées de l'opéra
+                const opera = OPERA_METADATA[id];
+                let operaDisplay = `Entrée ID: ${id} (Métadonnées non trouvées)`; // Fallback en cas d'erreur de correspondance
+
+                if (opera) {
+                    // Affichage formaté: Titre de l'opéra (Année)
+                    operaDisplay = `${opera.titre} (${opera.annee})`;
+                }
+
+
                 // Map the context sentences array to HTML divs
                 let contextHTML = entries[id].map(sentence => 
                     `<div class="entry-context">- ${sentence}</div>`
                 ).join('');
 
                 itemDiv.innerHTML = `
-                    <div class="entry-id">Entrée ID: ${id}</div>
+                    <div class="entry-id">${operaDisplay}</div>
                     ${contextHTML}
                 `;
                 
@@ -788,14 +860,21 @@
                 return;
             }
 
-            // 2. Mettre à jour le titre de la vue détaillée
+            // 2. Extraire les IDs de l'entité et les convertir en entiers pour la comparaison
+            const entryIDs = Object.keys(entity.entries);
+            state.entityFilterIDs = new Set(entryIDs.map(id => parseInt(id))); 
+            state.isEntityFilterActive = true;
+
+            // 3. Mettre à jour le titre de la vue détaillée
             document.getElementById('detail-entity-name').textContent = `${entityName}`;
 
-            // 3. Rendre les détails des entrées
+            // 4. Rendre les détails des entrées
             renderEntryDetail(entity.entries);
 
-            // 4. Changer la vue
+            // 5. Changer la vue
             showEntityDetail();
+
+            updateDashboard();
         }
 
         // --- MOTEUR DE RENDU ---
@@ -818,15 +897,27 @@
 
         function filterData(q) {
             const [s, e] = state.range;
+
+            if (!state.data) return [];
+
             return state.data.filter(f => {
                 const p = f.properties;
+
+                if (state.isEntityFilterActive) {
+                    // L'opéra doit faire partie des IDs (p.id) stockés par l'entité cliquée
+                    // Note: p.id est supposé être un nombre, state.entityFilterIDs contient des nombres.
+                    if (!state.entityFilterIDs.has(p.id)) {
+                        return false;
+                    }
+                }
+
                 // Temps
                 if(p.annee < s || p.annee > e) return false;
                 
                 // Recherche (CORRECTION 1.a: Ajout de la recherche sur theatre et compositeur)
                 if(q.search) {
                     const txt = (p.titre + " " + (p.theatre || '') + " " + (p.compositeur || '')).toLowerCase();
-                    if(!txt.includes(q.search)) return false;
+                    if(!txt.includes(q.search.toLowerCase())) return false;
                 }
                 
                 // Facettes
@@ -900,34 +991,29 @@
         // --- HISTOGRAMME ---
         function updateHistogram() {
             // Echelle Globale
+            // NOTE: The globalCounts and max calculation MUST be based on the ENTIRE dataset 
+            // for the gray background bars to represent the total density.
             let globalCounts = {}, max = 0;
+            
+            // Assuming state.data is the full, unfiltered list of features
             state.data.forEach(f => {
                 globalCounts[f.properties.annee] = (globalCounts[f.properties.annee]||0)+1;
                 if(globalCounts[f.properties.annee] > max) max = globalCounts[f.properties.annee];
             });
 
-            // Distribution des filtres (sans limite de temps)
-            const getDist = (q) => {
+
+            // NOUVEAU: getDist prend maintenant les résultats filtrés (déjà calculés dans updateDashboard)
+            const getDist = (results) => {
                 let c = {};
-                state.data.filter(f => {
-                    // Réutilise la logique de filtre sans la contrainte de temps (déjà gérée par le slider)
-                    const p = f.properties;
-                    
-                    if(q.search) {
-                        const txt = (p.titre + " " + (p.theatre || '') + " " + (p.compositeur || '')).toLowerCase();
-                        if(!txt.includes(q.search)) return false;
-                    }
-                    
-                    for(let k in q.filters) {
-                        if(q.filters[k].size > 0 && !q.filters[k].has(p[k])) return false;
-                    }
-                    return true;
-                }).forEach(f => c[f.properties.annee] = (c[f.properties.annee]||0)+1);
+                // Nous itérons sur les résultats déjà filtrés (results)
+                results.forEach(f => c[f.properties.annee] = (c[f.properties.annee]||0)+1);
                 return c;
             };
 
-            let cA = getDist(state.queries.A);
-            let cB = state.mode === 'compare' ? getDist(state.queries.B) : {};
+            // MODIFICATION CRITIQUE: Utiliser state.results.A et state.results.B
+            // Ces variables contiennent les données filtrées par filterData(), y compris le filtre Entité
+            let cA = getDist(state.results.A);
+            let cB = state.mode === 'compare' ? getDist(state.results.B) : {};
 
             for(let y=CONFIG.min; y<=CONFIG.max; y++) {
                 let el = document.getElementById('h-'+y);
@@ -938,6 +1024,7 @@
                 let hA  = max ? (cA[y]||0)/max*100 : 0;
                 let hB  = max ? (cB[y]||0)/max*100 : 0;
                 
+                // MÀJ des hauteurs
                 el.querySelector('.bar-bg').style.height = hBg+'%';
                 el.querySelector('.bar-a').style.height = hA+'%';
                 el.querySelector('.bar-b').style.height = hB+'%';
