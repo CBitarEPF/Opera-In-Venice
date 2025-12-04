@@ -425,6 +425,7 @@
         // Etat Global de l'application
         let state = {
             mode: 'simple', // 'simple' | 'compare'
+            currentView: 'operas', // 'operas' | 'entities'
             activeTab: 'A',
             queries: { A: { filters: {}, search: "" }, B: { filters: {}, search: "" } },
             results: { A: [], B: [] },
@@ -540,6 +541,9 @@
 
         // LOGIQUE DE NAVIGATION DE LA SIDEBAR
         function switchSidebarTab(tabName) {
+            // Modifier l'état de l'onglet
+            state.currentView = tabName
+            
             // Désactiver tous les onglets de navigation
             document.querySelectorAll('.sidebar-nav .nav-tab').forEach(t => t.classList.remove('active'));
             // Désactiver tous les contenus
