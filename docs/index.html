@@ -113,6 +113,95 @@
         .btn-reset { background: #f0f0f0; color: #333; }
         .btn-export { background: var(--text-main); color: #fff; }
 
+        /* New: Menu Tabs for Sidebar Navigation */
+        .sidebar-nav {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.03); /* Lighter background for the menu bar */
+        }
+        body.dark-mode .sidebar-nav {
+            background: rgba(255,255,255,0.05); 
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 12px 10px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95em;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: 0.3s;
+        }
+        .nav-tab:hover {
+            color: var(--primary);
+            background: rgba(0,0,0,0.01);
+        }
+        .nav-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: var(--bg-panel); /* Active tab matches panel background */
+        }
+
+        /* Adjust the filters wrapper to handle the new content structure */
+        .filters-wrapper { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            /* Remove padding here, we'll put it inside the content-tab */
+            padding: 0; 
+        }
+
+        /* New: Content area for each tab */
+        .content-tab {
+            padding: 0 20px; /* Add back the padding only to the content area */
+            display: none;
+            height: 100%; /* Ensure content fills the wrapper */
+        }
+        .content-tab.active {
+            display: block;
+        }
+
+        /* --- New Styles for Entity Lists --- */
+        .entity-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        .entity-item {
+            padding: 6px 0;
+            cursor: pointer;
+            border-bottom: 1px dotted var(--border);
+            transition: 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+        .entity-item:last-child {
+            border-bottom: none;
+        }
+        .entity-item:hover {
+            background: rgba(var(--primary-rgb), 0.05); /* Use RGB variable if defined, otherwise use a fixed color */
+            background: rgba(0,0,0,0.05); 
+        }
+        .entity-name {
+            font-weight: 500;
+        }
+        .entity-count {
+            font-size: 0.8em;
+            color: #999;
+            background: var(--border);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .placeholder-text {
+            padding: 10px 0;
+            font-style: italic;
+            color: #999;
+            text-align: center;
+        }
+
         /* --- 2. MAP --- */
         #map { grid-area: map; background: var(--bg-map); z-index: 1; }
         /* Animation fluide des cercles */
@@ -190,12 +279,85 @@
             <div class="tab tab-b" onclick="switchTab('B')">Recherche B</div>
         </div>
 
+        <div class="sidebar-nav">
+            <div class="nav-tab active" data-content="operas-content" onclick="switchSidebarTab('operas')">Opéras</div>
+            <div class="nav-tab" data-content="entities-content" onclick="switchSidebarTab('entities')">Entités</div>
+        </div>
+
         <div class="filters-wrapper">
-            <div class="search-box">
-                <input type="text" id="searchInput" class="search-input" placeholder="Rechercher (Titre, Théâtre, Compositeur)..." onkeyup="handleSearch()">
+        
+            <div id="operas-content" class="content-tab active">
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Rechercher (Titre, Théâtre, Compositeur)..." onkeyup="handleSearch()">
+                </div>
+                
+                <div id="facets-output">Chargement...</div>
             </div>
+            <div id="entities-content" class="content-tab">
             
-            <div id="facets-output">Chargement...</div>
+            <p style="margin: 15px 0 10px; font-size:0.9em; font-style: italic; color:#888;">Sélectionnez une entité ci-dessous pour lancer une analyse comparative dédiée. Les nombres indiquent le nombre d'entrées de référence dans le corpus.</p>
+
+                <div class="facet-group">
+                    <div class="facet-header" onclick="toggleFacetContent(this)">
+                        <span>Lieux</span> 
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="facet-content">
+                        <ul id="entities-loc-list" class="entity-list">
+                            <li class="placeholder-text">Chargement des entités...</li>
+                        </ul> 
+                    </div>
+                </div>
+
+                <div class="facet-group">
+                    <div class="facet-header" onclick="toggleFacetContent(this)">
+                        <span>Compositeurs/Librettistes</span> 
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="facet-content">
+                        <ul id="entities-comp-libr-list" class="entity-list">
+                            <li class="placeholder-text">Chargement des entités...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="facet-group">
+                    <div class="facet-header" onclick="toggleFacetContent(this)">
+                        <span>Théâtres</span> 
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="facet-content">
+                        <ul id="entities-thea-list" class="entity-list">
+                            <li class="placeholder-text">Chargement des entités...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="facet-group">
+                    <div class="facet-header" onclick="toggleFacetContent(this)">
+                        <span>Acteurs/Actrices</span> 
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="facet-content">
+                        <ul id="entities-act-list" class="entity-list">
+                            <li class="placeholder-text">Chargement des entités...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="facet-group">
+                    <div class="facet-header" onclick="toggleFacetContent(this)">
+                        <span>Autres</span> 
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="facet-content">
+                        <ul id="entities-misc-list" class="entity-list">
+                            <li class="placeholder-text">Chargement des entités...</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
         </div>
 
         <div class="sidebar-footer">
@@ -263,6 +425,7 @@
         // Etat Global de l'application
         let state = {
             mode: 'simple', // 'simple' | 'compare'
+            currentView: 'operas', // 'operas' | 'entities'
             activeTab: 'A',
             queries: { A: { filters: {}, search: "" }, B: { filters: {}, search: "" } },
             results: { A: [], B: [] },
@@ -330,6 +493,8 @@
                 d.innerHTML = `<div class="bar-bg"></div><div class="bar-a"></div><div class="bar-b"></div>`;
                 hContainer.appendChild(d);
             }
+
+            loadEntitiesData();
             
             // Initialisation de la checkbox du mode sombre dans le menu modal
             document.getElementById('darkModeToggle').checked = document.body.classList.contains('dark-mode');
@@ -338,12 +503,15 @@
             updateDashboard();
         }
 
-        // --- LOGIQUE ---
+        // LOGIQUE
         function toggleMode() {
             state.mode = document.getElementById('modeToggle').checked ? 'compare' : 'simple';
             document.body.classList.toggle('compare-mode', state.mode === 'compare');
             document.getElementById('legend-b').style.display = state.mode === 'compare' ? 'inline-flex' : 'none';
             
+            const tabsContainer = document.querySelector('.tabs-container');
+            tabsContainer.style.display = (state.mode === 'compare') ? 'flex' : 'none';
+
             if(state.mode === 'simple') switchTab('A');
             updateDashboard();
         }
@@ -369,6 +537,132 @@
             if(!q.filters[key]) q.filters[key] = new Set();
             checked ? q.filters[key].add(val) : q.filters[key].delete(val);
             updateDashboard();
+        }
+
+        // LOGIQUE DE NAVIGATION DE LA SIDEBAR
+        function switchSidebarTab(tabName) {
+            // Modifier l'état de l'onglet
+            state.currentView = tabName
+            
+            // Désactiver tous les onglets de navigation
+            document.querySelectorAll('.sidebar-nav .nav-tab').forEach(t => t.classList.remove('active'));
+            // Désactiver tous les contenus
+            document.querySelectorAll('.filters-wrapper .content-tab').forEach(c => c.classList.remove('active'));
+
+            // Activer l'onglet cliqué
+            const activeTab = document.querySelector(`.sidebar-nav .nav-tab[data-content="${tabName}-content"]`);
+            if (activeTab) activeTab.classList.add('active');
+
+            // Activer le contenu correspondant
+            const activeContent = document.getElementById(`${tabName}-content`);
+            if (activeContent) activeContent.classList.add('active');
+
+            // NOUVEAU: Mettre à jour la visibilité de la zone A/B en fonction du mode de comparaison global.
+            // Cela s'applique désormais à TOUS les contenus (opéras, entités, etc.)
+            const tabsContainer = document.querySelector('.tabs-container');
+            tabsContainer.style.display = (state.mode === 'compare') ? 'flex' : 'none';
+
+            // Si on change de contenu, et qu'on est en mode comparaison, on s'assure que le contenu A/B est à jour.
+            if (state.mode === 'compare') {
+                if (tabName === 'operas') {
+                    renderFacets();
+                } else if (tabName === 'entities') {
+                    // Future fonction pour initialiser/mettre à jour l'affichage des entités A/B
+                }
+            }
+        }
+
+        // Fonction pour gérer les nouveaux accordéons dans Entités ---
+        function toggleFacetContent(headerElement) {
+            const content = headerElement.nextElementSibling;
+            const icon = headerElement.querySelector('i');
+            
+            // Toggle the open class for display/animation
+            content.classList.toggle('open');
+            
+            // Toggle the arrow icon
+            icon.className = content.classList.contains('open') ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+        }
+
+        // --- LOGIQUE D'EXPLORATION DES ENTITÉS ---
+
+        let ENTITY_DATA = {
+            LOC: [],        // Lieux
+            COMP_LIBR: [],  // Compositeurs/Librettistes
+            THEA: [],       // Théâtres
+            ACT: [],        // Acteurs/Actrices
+            MISC: []        // Autres
+        };
+
+        function loadEntitiesData() {
+            fetch('entity_occurrences.json')
+                .then(response => {
+                    if (!response.ok) throw new Error("entity_occurrences.json non trouvé ou illisible (Statut: " + response.status + ")");
+                    return response.json();
+                })
+                .then(data => {
+                    // Group, count, and store entities by type
+                    data.forEach(item => {
+                        if (ENTITY_DATA.hasOwnProperty(item.type)) {
+                            // Calculate count based on the number of entries (performance IDs)
+                            ENTITY_DATA[item.type].push({
+                                name: item.entity,
+                                type: item.type,
+                                count: Object.keys(item.entries).length 
+                            });
+                        }
+                    });
+
+                    // Sort all lists alphabetically by name
+                    for (let key in ENTITY_DATA) {
+                        ENTITY_DATA[key].sort((a, b) => a.name.localeCompare(b.name));
+                    }
+
+                    // Render the lists once the data is ready
+                    renderEntitiesTab();
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement des données d'entités:", error);
+                    // Display a user-friendly error in the Entités panel
+                    document.getElementById('entities-content').innerHTML = 
+                        `<p style="color: red; padding: 15px;">Erreur de chargement des données: ${error.message}. Vérifiez si le fichier est dans le même dossier.</p>`;
+                });
+        }
+
+
+        function renderEntitiesTab() {
+            const mapping = {
+                'LOC': 'entities-loc-list',
+                'COMP_LIBR': 'entities-comp-libr-list',
+                'THEA': 'entities-thea-list',
+                'ACT': 'entities-act-list',
+                'MISC': 'entities-misc-list'
+            };
+
+            for (const type in ENTITY_DATA) {
+                const listContainer = document.getElementById(mapping[type]);
+                if (listContainer) {
+                    listContainer.innerHTML = ''; // Clear the "Chargement..." message
+
+                    if (ENTITY_DATA[type].length === 0) {
+                        listContainer.innerHTML = `<li class="placeholder-text">Aucune entité de ce type trouvée.</li>`;
+                        continue;
+                    }
+
+                    ENTITY_DATA[type].forEach(entity => {
+                        const li = document.createElement('li');
+                        li.className = 'entity-item';
+                        // Currently, this doesn't trigger any action, but the structure is ready
+                        // li.onclick = () => console.log('Analyse Entity:', entity.name); 
+                        
+                        li.innerHTML = `
+                            <span class="entity-name">${entity.name}</span>
+                            <span class="entity-count">${entity.count} entrées</span>
+                        `;
+                        listContainer.appendChild(li);
+                    });
+                }
+            }
         }
 
         // --- MOTEUR DE RENDU ---
