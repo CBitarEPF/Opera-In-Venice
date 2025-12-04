@@ -202,6 +202,55 @@
             text-align: center;
         }
 
+        .detail-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5em;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 5px;
+        }
+        .back-button {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .back-button:hover {
+            background: var(--border);
+        }
+        .entry-item {
+            padding: 10px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+        .entry-item:last-child {
+            border-bottom: none;
+        }
+        .entry-id {
+            font-weight: bold;
+            color: var(--primary); /* Uses the active primary color */
+            margin-bottom: 5px;
+        }
+        .entry-context {
+            font-size: 0.85em;
+            line-height: 1.4;
+            padding-left: 10px;
+            border-left: 2px solid #ccc;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        body.dark-mode .entry-context {
+            border-left-color: #555;
+        }
+
         /* --- 2. MAP --- */
         #map { grid-area: map; background: var(--bg-map); z-index: 1; }
         /* Animation fluide des cercles */
@@ -293,9 +342,10 @@
                 
                 <div id="facets-output">Chargement...</div>
             </div>
-            <div id="entities-content" class="content-tab">
+        <div id="entities-content" class="content-tab">
             
-            <p style="margin: 15px 0 10px; font-size:0.9em; font-style: italic; color:#888;">Sélectionnez une entité ci-dessous pour lancer une analyse comparative dédiée. Les nombres indiquent le nombre d'entrées de référence dans le corpus.</p>
+            <div id="entity-list-view">
+                <p style="margin: 15px 0 10px; font-size:0.9em; font-style: italic; color:#888;">Sélectionnez une entité ci-dessous pour lancer une analyse comparative dédiée. Les nombres indiquent le nombre d'entrées de référence dans le corpus.</p>
 
                 <div class="facet-group">
                     <div class="facet-header" onclick="toggleFacetContent(this)">
@@ -356,8 +406,20 @@
                         </ul>
                     </div>
                 </div>
-
             </div>
+            
+            <div id="entity-detail-view" style="display:none;">
+                <div style="padding: 10px 20px;">
+                    <button class="back-button" onclick="showEntityList()">
+                        <i class="fas fa-chevron-left"></i> Retour à la liste
+                    </button>
+                    <h3 id="detail-entity-name" class="detail-title"></h3>
+                    <div id="detail-entry-list">
+                        </div>
+                </div>
+            </div>
+
+        </div>
         </div>
 
         <div class="sidebar-footer">
@@ -433,6 +495,7 @@
             data: [],
             isPlaying: false
         };
+
 
         let map, tileLayer, slider, playInterval;
         // Groupes de layers pour gérer l'animation
@@ -586,6 +649,8 @@
 
         // --- LOGIQUE D'EXPLORATION DES ENTITÉS ---
 
+        let RAW_ENTITY_DATA = [];
+
         let ENTITY_DATA = {
             LOC: [],        // Lieux
             COMP_LIBR: [],  // Compositeurs/Librettistes
@@ -601,6 +666,9 @@
                     return response.json();
                 })
                 .then(data => {
+
+                    RAW_ENTITY_DATA = data;
+
                     // Group, count, and store entities by type
                     data.forEach(item => {
                         if (ENTITY_DATA.hasOwnProperty(item.type)) {
@@ -649,20 +717,85 @@
                         continue;
                     }
 
-                    ENTITY_DATA[type].forEach(entity => {
-                        const li = document.createElement('li');
-                        li.className = 'entity-item';
-                        // Currently, this doesn't trigger any action, but the structure is ready
-                        // li.onclick = () => console.log('Analyse Entity:', entity.name); 
-                        
-                        li.innerHTML = `
-                            <span class="entity-name">${entity.name}</span>
-                            <span class="entity-count">${entity.count} entrées</span>
-                        `;
-                        listContainer.appendChild(li);
-                    });
+                ENTITY_DATA[type].forEach(entity => {
+                    const li = document.createElement('li');
+                    li.className = 'entity-item';
+                    
+                    // NOUVEAU: Ajout de l'événement onclick
+                    li.onclick = () => analyseEntity(entity.name, entity.type); // <--- MODIFICATION ICI
+                    
+                    li.innerHTML = `
+                        <span class="entity-name">${entity.name}</span>
+                        <span class="entity-count">${entity.count} entrées</span>
+                    `;
+                    listContainer.appendChild(li);
+                });
                 }
             }
+        }
+
+        // --- LOGIQUE DE VUE DÉTAILLÉE DES ENTITÉS (Fonctions utilitaires) ---
+
+        function showEntityList() {
+            // Affiche la liste des entités (vue par défaut)
+            document.getElementById('entity-list-view').style.display = 'block';
+            document.getElementById('entity-detail-view').style.display = 'none';
+        }
+
+        function showEntityDetail() {
+            // Affiche la vue détaillée
+            document.getElementById('entity-list-view').style.display = 'none';
+            document.getElementById('entity-detail-view').style.display = 'block';
+        }
+
+        function renderEntryDetail(entries) {
+            const listContainer = document.getElementById('detail-entry-list');
+            listContainer.innerHTML = '';
+            
+            // Convert entries object (key=ID, value=Context Array) to a sorted array for display
+            // Sort numerically by ID
+            const entryIDs = Object.keys(entries).sort((a, b) => parseInt(a) - parseInt(b));
+
+            if (entryIDs.length === 0) {
+                listContainer.innerHTML = `<p class="placeholder-text">Aucune entrée contextuelle trouvée pour cette entité.</p>`;
+                return;
+            }
+
+            entryIDs.forEach(id => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'entry-item';
+
+                // Map the context sentences array to HTML divs
+                let contextHTML = entries[id].map(sentence => 
+                    `<div class="entry-context">- ${sentence}</div>`
+                ).join('');
+
+                itemDiv.innerHTML = `
+                    <div class="entry-id">Entrée ID: ${id}</div>
+                    ${contextHTML}
+                `;
+                
+                listContainer.appendChild(itemDiv);
+            });
+        }
+
+        function analyseEntity(entityName, entityType) {
+            // 1. Trouver l'objet entité complet à partir du nom
+            const entity = RAW_ENTITY_DATA.find(e => e.entity === entityName && e.type === entityType);
+
+            if (!entity || !entity.entries) {
+                console.error("Données d'entité introuvables ou entrées manquantes:", entityName);
+                return;
+            }
+
+            // 2. Mettre à jour le titre de la vue détaillée
+            document.getElementById('detail-entity-name').textContent = `${entityName}`;
+
+            // 3. Rendre les détails des entrées
+            renderEntryDetail(entity.entries);
+
+            // 4. Changer la vue
+            showEntityDetail();
         }
 
         // --- MOTEUR DE RENDU ---
