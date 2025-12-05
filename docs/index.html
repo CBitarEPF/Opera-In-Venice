@@ -645,17 +645,15 @@
             if (state.currentView === 'entities') {
                 document.getElementById('entity-list-view').style.display = 'block';
                 document.getElementById('entity-detail-view').style.display = 'none';
+            } else {
+                if (state.mode === 'compare') {
+                    document.getElementById('modeToggle').checked = false;
+                    toggleMode();
+                }
+                resetCurrent();
             }
 
             state.currentView = tabName;
-
-            resetCurrent();
-
-            if (state.mode === 'compare') {
-                state.mode = 'simple';
-                const tabsContainer = document.querySelector('.tabs-container');
-                tabsContainer.style.display = 'none';
-            }
 
             state.queries = { A: { filters: {}, search: "" }, B: { filters: {}, search: "" } };
             state.isEntityFilterActive = false;
