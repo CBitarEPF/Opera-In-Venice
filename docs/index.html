@@ -301,8 +301,68 @@
         .menu-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
         .close-menu { width: 100%; padding: 12px; background: var(--text-main); color: var(--bg-panel); border: none; cursor: pointer; margin-top: 20px; font-weight: bold; text-transform: uppercase; }
 
+        /* Boutons d'export : Style élégant et intégré */
+        .rec-btn, .snap-btn {
+            width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); 
+            background: transparent; color: var(--text-main);
+            cursor: pointer; margin-right: 10px; display: flex; 
+            justify-content: center; align-items: center; transition: all 0.2s ease;
+        }
+
+        .snap-btn:hover { background: var(--text-main); color: var(--bg-panel); }
+
+        /* Le bouton REC devient rouge uniquement à l'enregistrement ou au survol */
+        .rec-btn:hover { color: var(--primary); border-color: var(--primary); }
+        .rec-btn.recording { 
+            background: var(--primary); color: white; border-color: var(--primary);
+            animation: pulse 1.5s infinite; pointer-events: none;
+        }
+
+        @keyframes pulse { 
+            0% { box-shadow: 0 0 0 0 rgba(158, 42, 43, 0.7); } /* utilise la couleur primary */
+            70% { box-shadow: 0 0 0 10px rgba(158, 42, 43, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(158, 42, 43, 0); }
+        }
         /* Animation Helper */
         @keyframes fadeIn { from { opacity:0; transform: translateY(-5px);} to { opacity:1; transform: translateY(0);} }
+
+        /* --- FEATURE B: Tooltip Histogramme --- */
+        #hist-tooltip {
+            position: fixed;
+            background: rgba(43, 45, 66, 0.95);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            pointer-events: none; /* La souris passe au travers */
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 5000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border: 1px solid var(--gold);
+            white-space: nowrap;
+        }
+
+        /* --- FEATURE C: Visite Guidée (Tour Box) --- */
+        #tour-overlay {
+            position: absolute;
+            bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 600px; max-width: 90%;
+            background: var(--bg-panel);
+            border-left: 5px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 20px;
+            border-radius: 4px;
+            z-index: 4000; /* Au-dessus de la carte */
+            display: none; /* Caché par défaut */
+            font-family: 'Lato', sans-serif;
+            animation: slideUp 0.4s ease-out;
+        }
+        #tour-overlay h3 { margin: 0 0 10px 0; font-family: 'Playfair Display'; color: var(--primary); }
+        #tour-overlay p { margin: 0 0 20px 0; line-height: 1.5; font-size: 0.95em; color: var(--text-main); }
+        .tour-controls { display: flex; justify-content: flex-end; gap: 10px; }
+
+        @keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -310,12 +370,21 @@
     <div id="sidebar">
         <div class="sidebar-header">
             <div class="header-top">
-                <h1 class="app-title">Opera Venetia</h1>
+                <h1 class="app-title">Opera in Venice</h1>
                 <button class="burger-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
             </div>
 
+            <!-- Toggle Heatmap -->
+            <div class="mode-switch-container" style="margin-top: 10px;">
+                <div class="switch-label"><i class="fas fa-fire-alt"></i> Heatmap mode</div>
+                <label class="switch">
+                    <input type="checkbox" id="heatmapToggle" onchange="toggleHeatmap()">
+                    <span class="slider-round"></span>
+                </label>
+            </div>
+
             <div class="mode-switch-container" id = "modeSwitch">
-                <div class="switch-label"><i class="fas fa-balance-scale"></i> Mode Comparaison</div>
+                <div class="switch-label"><i class="fas fa-balance-scale"></i> Comparison mode</div>
                 <label class="switch">
                     <input type="checkbox" id="modeToggle" onchange="toggleMode()">
                     <span class="slider-round"></span>
@@ -324,8 +393,8 @@
         </div>
 
         <div class="tabs-container">
-            <div class="tab tab-a active" onclick="switchTab('A')">Recherche A</div>
-            <div class="tab tab-b" onclick="switchTab('B')">Recherche B</div>
+            <div class="tab tab-a active" onclick="switchTab('A')">Search A</div>
+            <div class="tab tab-b" onclick="switchTab('B')">Search B</div>
         </div>
 
         <div class="sidebar-nav">
@@ -337,43 +406,43 @@
         
             <div id="operas-content" class="content-tab active">
                 <div class="search-box">
-                    <input type="text" id="searchInput" class="search-input" placeholder="Rechercher (Titre, Théâtre, Compositeur)..." onkeyup="handleSearch()">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search (Title, Theater, Composer)..." onkeyup="handleSearch()">
                 </div>
                 
-                <div id="facets-output">Chargement...</div>
+                <div id="facets-output">Loading...</div>
             </div>
         <div id="entities-content" class="content-tab">
             
             <div id="entity-list-view">
-                <p style="margin: 15px 0 10px; font-size:0.9em; font-style: italic; color:#888;">Sélectionnez une entité ci-dessous pour lancer une analyse comparative dédiée. Les nombres indiquent le nombre d'entrées de référence dans le corpus.</p>
+                <p style="margin: 15px 0 10px; font-size:0.9em; font-style: italic; color:#888;">Select one entity below. Numbers show how many references stay in the corpus.</p>
 
                 <div class="facet-group">
                     <div class="facet-header" onclick="toggleFacetContent(this)">
-                        <span>Lieux</span> 
+                        <span>Places</span> 
                         <i class="fas fa-chevron-down"></i>
                     </div>
                     <div class="facet-content">
                         <ul id="entities-loc-list" class="entity-list">
-                            <li class="placeholder-text">Chargement des entités...</li>
+                            <li class="placeholder-text">Loading entities...</li>
                         </ul> 
                     </div>
                 </div>
 
                 <div class="facet-group">
                     <div class="facet-header" onclick="toggleFacetContent(this)">
-                        <span>Compositeurs/Librettistes</span> 
+                        <span>Composers/Writters</span> 
                         <i class="fas fa-chevron-down"></i>
                     </div>
                     <div class="facet-content">
                         <ul id="entities-comp-libr-list" class="entity-list">
-                            <li class="placeholder-text">Chargement des entités...</li>
+                            <li class="placeholder-text">Loading entities...</li>
                         </ul>
                     </div>
                 </div>
 
                 <div class="facet-group">
                     <div class="facet-header" onclick="toggleFacetContent(this)">
-                        <span>Théâtres</span> 
+                        <span>Theaters</span> 
                         <i class="fas fa-chevron-down"></i>
                     </div>
                     <div class="facet-content">
@@ -385,24 +454,24 @@
 
                 <div class="facet-group">
                     <div class="facet-header" onclick="toggleFacetContent(this)">
-                        <span>Acteurs/Actrices</span> 
+                        <span>Singers</span> 
                         <i class="fas fa-chevron-down"></i>
                     </div>
                     <div class="facet-content">
                         <ul id="entities-act-list" class="entity-list">
-                            <li class="placeholder-text">Chargement des entités...</li>
+                            <li class="placeholder-text">Loading entities...</li>
                         </ul>
                     </div>
                 </div>
 
                 <div class="facet-group">
                     <div class="facet-header" onclick="toggleFacetContent(this)">
-                        <span>Autres</span> 
+                        <span>Others</span> 
                         <i class="fas fa-chevron-down"></i>
                     </div>
                     <div class="facet-content">
                         <ul id="entities-misc-list" class="entity-list">
-                            <li class="placeholder-text">Chargement des entités...</li>
+                            <li class="placeholder-text">Loading entities...</li>
                         </ul>
                     </div>
                 </div>
@@ -411,7 +480,7 @@
             <div id="entity-detail-view" style="display:none;">
                 <div style="padding: 10px 20px;">
                     <button class="back-button" onclick="showEntityList()">
-                        <i class="fas fa-chevron-left"></i> Retour à la liste
+                        <i class="fas fa-chevron-left"></i> Back to the list
                     </button>
                     <h3 id="detail-entity-name" class="detail-title"></h3>
                     <div id="detail-entry-list">
@@ -424,6 +493,7 @@
 
         <div class="sidebar-footer">
             <button class="btn btn-reset" onclick="resetCurrent()"><i class="fas fa-undo"></i> Reset</button>
+            <button class="btn" style="background: var(--gold); color: white;" onclick="startTour()"><i class="fas fa-route"></i> Visite</button>
             <button class="btn btn-export" onclick="exportData()"><i class="fas fa-file-csv"></i> Export</button>
         </div>
     </div>
@@ -433,6 +503,10 @@
     <div id="timeline-panel">
         <div class="controls-row">
             <button class="play-btn" onclick="togglePlay()"><i id="play-icon" class="fas fa-play"></i></button>
+            
+            <button class="snap-btn" onclick="takeScreenshot()" title="Capture d'écran (PNG)"><i class="fas fa-camera"></i></button>
+            <button class="rec-btn" id="rec-btn" onclick="startRecording()" title="Enregistrer Animation (GIF)"><i class="fas fa-video"></i></button>
+            
             <div class="date-display" id="date-display">1660 - 1760</div>
             
             <div class="legend-item" style="color:var(--primary)">
@@ -449,19 +523,19 @@
 
     <div id="menu-overlay" onclick="if(event.target==this) toggleMenu()">
         <div id="menu-box">
-            <h2>Paramètres & Infos</h2>
+            <h2>Settings & Information</h2>
             
             <div class="menu-row">
-                <span><i class="fas fa-moon"></i> Mode Sombre</span>
+                <span><i class="fas fa-moon"></i> Dark Mode</span>
                 <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()">
             </div>
 
             <div class="menu-row">
-                <span><i class="fas fa-map"></i> Fond de carte</span>
+                <span><i class="fas fa-map"></i> Map</span>
                 <select id="mapStyle" onchange="changeMapStyle(this.value)" style="padding:5px;">
-                    <option value="voyager">Voyager (Clair)</option>
-                    <option value="dark_all">Dark Matter (Sombre)</option>
-                    <option value="light_all">Positron (Minimal)</option>
+                    <option value="voyager">Light Mode</option>
+                    <option value="dark_all">Dark Mode</option>
+                    <option value="light_all">Minimal Mode</option>
                 </select>
             </div>
 
@@ -469,16 +543,39 @@
                 <strong>À propos</strong><br>
                 Ce tableau de bord permet l'exploration spatio-temporelle du répertoire lyrique vénitien.<br>
                 <br>
-                <strong>Données</strong>: <em>sample_operas.geojson</em><br>
+                <strong>Data</strong>: Eleanor Selfridge-Field, <em>A New Chronology of Venetian Opera and Related Genres : 1660-1760</em>, Stanford, Stanford University Press, 2007.<br>
                 <strong>Technologies</strong>: Leaflet, NoUiSlider<br>
             </div>
 
-            <button class="close-menu" onclick="toggleMenu()">Fermer</button>
+            <button class="close-menu" onclick="toggleMenu()">Close</button>
         </div>
     </div>
 
+    <!-- Feature B: Tooltip container -->
+    <div id="hist-tooltip"></div>
+
+    <!-- Feature C: Boîte de la visite guidée -->
+    <div id="tour-overlay">
+        <h3 id="tour-title">Titre de l'étape</h3>
+        <p id="tour-text">Contenu explicatif...</p>
+        <div class="tour-controls">
+            <button class="btn btn-reset" onclick="endTour()">Quitter</button>
+            <button class="btn btn-export" onclick="nextTourStep()">Suivant <i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <div id="export-overlay" style="display:none;">
+            <i class="fas fa-spinner fa-spin fa-3x"></i>
+            <div id="export-status">Génération du GIF en cours...</div>
+    </div>
+
+    <!-- Bibliothèques pour Capture et GIF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.0/nouislider.min.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
     <script>
         // --- CONFIGURATION ---
@@ -496,7 +593,11 @@
             isPlaying: false,
             entityFilterIDs: new Set(),
             isEntityFilterActive: false,
+            vizMode: 'points',
+            isRecording: false
         };
+
+        let heatLayer = null;
 
 
         let map, tileLayer, slider, playInterval;
@@ -519,9 +620,9 @@
             layers.B.addTo(map);
 
             // 2. Chargement Données
-            fetch('sample_operas.geojson')
+            fetch('sample_operas2.geojson')
                 .then(r => {
-                    if(!r.ok) throw new Error("Fichier non trouvé");
+                    if(!r.ok) throw new Error("File not found");
                     return r.json();
                 })
                 .then(data => {
@@ -530,7 +631,7 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    alert("Erreur : sample_operas.geojson introuvable. Vérifiez votre serveur local.");
+                    alert("Error: sample_operas2.geojson not found. Check your local server.");
                 });
         });
 
@@ -538,9 +639,9 @@
 
         // --- NOUVELLE LOGIQUE DE CHARGEMENT DES METADONNÉES D'OPÉRA ---
         function loadOperaMetadata() {
-            fetch('sample_operas.geojson')
+            fetch('sample_operas2.geojson')
                 .then(response => {
-                    if (!response.ok) throw new Error("sample_operas.geojson non trouvé ou illisible.");
+                    if (!response.ok) throw new Error("sample_operas2.geojson not found or not readable.");
                     return response.json();
                 })
                 .then(geojson => {
@@ -552,10 +653,10 @@
                             annee: props.annee
                         };
                     });
-                    console.log("Métadonnées des opéras chargées:", Object.keys(OPERA_METADATA).length);
+                    console.log("Operas metadata loaded:", Object.keys(OPERA_METADATA).length);
                 })
                 .catch(error => {
-                    console.error("Erreur lors du chargement des données d'opéras:", error);
+                    console.error("Error when loading operas data:", error);
                 });
         }
 
@@ -645,15 +746,17 @@
             if (state.currentView === 'entities') {
                 document.getElementById('entity-list-view').style.display = 'block';
                 document.getElementById('entity-detail-view').style.display = 'none';
-            } else {
-                if (state.mode === 'compare') {
-                    document.getElementById('modeToggle').checked = false;
-                    toggleMode();
-                }
-                resetCurrent();
             }
 
             state.currentView = tabName;
+
+            resetCurrent();
+
+            // if (state.mode === 'compare') {
+            //     state.mode = 'simple';
+            //    const tabsContainer = document.querySelector('.tabs-container');
+            //    tabsContainer.style.display = 'none';
+            //}
 
             state.queries = { A: { filters: {}, search: "" }, B: { filters: {}, search: "" } };
             state.isEntityFilterActive = false;
@@ -717,7 +820,7 @@
         function loadEntitiesData() {
             fetch('entity_occurrences.json')
                 .then(response => {
-                    if (!response.ok) throw new Error("entity_occurrences.json non trouvé ou illisible (Statut: " + response.status + ")");
+                    if (!response.ok) throw new Error("entity_occurrences.json not found or not readable (Status: " + response.status + ")");
                     return response.json();
                 })
                 .then(data => {
@@ -745,10 +848,10 @@
                     renderEntitiesTab();
                 })
                 .catch(error => {
-                    console.error("Erreur lors du chargement des données d'entités:", error);
+                    console.error("Error when loading entities:", error);
                     // Display a user-friendly error in the Entités panel
                     document.getElementById('entities-content').innerHTML = 
-                        `<p style="color: red; padding: 15px;">Erreur de chargement des données: ${error.message}. Vérifiez si le fichier est dans le même dossier.</p>`;
+                        `<p style="color: red; padding: 15px;">Error in data loading: ${error.message}. Check if the file is in the same folder.</p>`;
                 });
         }
 
@@ -768,7 +871,7 @@
                     listContainer.innerHTML = ''; // Clear the "Chargement..." message
 
                     if (ENTITY_DATA[type].length === 0) {
-                        listContainer.innerHTML = `<li class="placeholder-text">Aucune entité de ce type trouvée.</li>`;
+                        listContainer.innerHTML = `<li class="placeholder-text">No entry from this type has been found.</li>`;
                         continue;
                     }
 
@@ -781,7 +884,7 @@
                     
                     li.innerHTML = `
                         <span class="entity-name">${entity.name}</span>
-                        <span class="entity-count">${entity.count} entrées</span>
+                        <span class="entity-count">${entity.count} entries</span>
                     `;
                     listContainer.appendChild(li);
                 });
@@ -817,7 +920,7 @@
             const entryIDs = Object.keys(entries).sort((a, b) => parseInt(a) - parseInt(b));
 
             if (entryIDs.length === 0) {
-                listContainer.innerHTML = `<p class="placeholder-text">Aucune entrée contextuelle trouvée pour cette entité.</p>`;
+                listContainer.innerHTML = `<p class="placeholder-text">No contextual entry found for this entity.</p>`;
                 return;
             }
 
@@ -827,7 +930,7 @@
 
                 // NOUVEAU: Récupération des métadonnées de l'opéra
                 const opera = OPERA_METADATA[id];
-                let operaDisplay = `Entrée ID: ${id} (Métadonnées non trouvées)`; // Fallback en cas d'erreur de correspondance
+                let operaDisplay = `Entry ID: ${id} (Metadata not found)`; // Fallback en cas d'erreur de correspondance
 
                 if (opera) {
                     // Affichage formaté: Titre de l'opéra (Année)
@@ -854,7 +957,7 @@
             const entity = RAW_ENTITY_DATA.find(e => e.entity === entityName && e.type === entityType);
 
             if (!entity || !entity.entries) {
-                console.error("Données d'entité introuvables ou entrées manquantes:", entityName);
+                console.error("Entities data not found or lacking entries:", entityName);
                 return;
             }
 
@@ -881,9 +984,20 @@
             state.results.A = filterData(state.queries.A);
             state.results.B = state.mode === 'compare' ? filterData(state.queries.B) : [];
 
-            // 2. Mettre à jour la Carte (Animation)
-            updateMapLayer('A', state.results.A, '#9e2a2b');
-            updateMapLayer('B', state.results.B, '#219ebc');
+            // 2. Gestion de l'affichage Carte (MODIFIÉ)
+            if (state.vizMode === 'heatmap') {
+                // Mode Heatmap : On efface les points et on dessine la chaleur
+                layers.A.clearLayers();
+                layers.B.clearLayers();
+                updateHeatmapLayer();
+            } else {
+                // Mode Points : On s'assure que la heatmap est partie
+                if (heatLayer) map.removeLayer(heatLayer);
+                
+                // On dessine les points comme avant
+                updateMapLayer('A', state.results.A, '#9e2a2b');
+                updateMapLayer('B', state.results.B, '#219ebc');
+            }
 
             // 3. Histogramme
             updateHistogram();
@@ -980,9 +1094,9 @@
         }
 
         function buildPopup(title, data) {
-            let html = `<strong>${title}</strong><br>${data.count} opéras<br><hr style="margin:5px 0; border:0; border-top:1px solid #eee">`;
+            let html = `<strong>${title}</strong><br>${data.count} Operas<br><hr style="margin:5px 0; border:0; border-top:1px solid #eee">`;
             data.list.slice(0,5).forEach(o => html += `<div style="font-size:0.9em">${o.annee}: ${o.titre}</div>`);
-            if(data.list.length > 5) html += `<em>...et ${data.list.length-5} autres</em>`;
+            if(data.list.length > 5) html += `<em>...and ${data.list.length-5} others</em>`;
             return html;
         }
 
@@ -1013,22 +1127,30 @@
             let cA = getDist(state.results.A);
             let cB = state.mode === 'compare' ? getDist(state.results.B) : {};
 
-            for(let y=CONFIG.min; y<=CONFIG.max; y++) {
+             for(let y=CONFIG.min; y<=CONFIG.max; y++) {
                 let el = document.getElementById('h-'+y);
+                if (!el) continue;
+                
+                // Calculs existants
+                let valGlobal = globalCounts[y]||0;
+                let valA = cA[y]||0;
+                let valB = cB[y]||0;
 
-                if (!el) continue; // added
+                let hBg = max ? valGlobal/max*100 : 0;
+                let hA  = max ? valA/max*100 : 0;
+                let hB  = max ? valB/max*100 : 0;
                 
-                let hBg = max ? (globalCounts[y]||0)/max*100 : 0;
-                let hA  = max ? (cA[y]||0)/max*100 : 0;
-                let hB  = max ? (cB[y]||0)/max*100 : 0;
-                
-                // MÀJ des hauteurs
+                // Mise à jour visuelle
                 el.querySelector('.bar-bg').style.height = hBg+'%';
                 el.querySelector('.bar-a').style.height = hA+'%';
                 el.querySelector('.bar-b').style.height = hB+'%';
-                
-                // Griser hors période
                 el.style.opacity = (y >= state.range[0] && y <= state.range[1]) ? 1 : 0.3;
+
+                // --- AJOUT POUR FEATURE B : Stockage des données pour le tooltip ---
+                el.setAttribute('data-year', y);
+                el.setAttribute('data-total', valGlobal);
+                el.setAttribute('data-a', valA);
+                el.setAttribute('data-b', valB);
             }
         }
 
@@ -1132,7 +1254,8 @@
         function changeMapStyle(style) {
             if(tileLayer) map.removeLayer(tileLayer);
             tileLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/${style}/{z}/{x}/{y}{r}.png`, {
-                attribution: '&copy; CARTO'
+                attribution: '&copy; CARTO',
+                crossOrigin: true
             }).addTo(map);
             // layers.A.bringToFront(); layers.B.bringToFront();
         }
@@ -1158,6 +1281,256 @@
                 clearInterval(playInterval);
             }
         }
+
+        // --- FONCTIONS D'EXPORT IMAGE & GIF (Corrigées) ---
+
+        function getCaptureArea() {
+            // Calcul dynamique de la zone à droite de la sidebar
+            const sidebarEl = document.getElementById('sidebar');
+            const sidebarWidth = sidebarEl.offsetWidth;
+            const totalWidth = document.body.clientWidth;
+            const totalHeight = document.body.clientHeight;
+
+            return {
+                x: sidebarWidth,
+                y: 0,
+                width: totalWidth - sidebarWidth,
+                height: totalHeight
+            };
+        }
+
+        // 1. Capture d'écran (Image PNG - Sans la sidebar)
+        async function takeScreenshot() {
+            const sidebar = document.getElementById('sidebar');
+            const prevDisplay = sidebar.style.display;
+            const prevGridCols = document.body.style.gridTemplateColumns;
+            const prevGridAreas = document.body.style.gridTemplateAreas;
+            
+            // 1. Masquer Sidebar et Ajuster Grille
+            sidebar.style.display = 'none';
+            document.body.style.gridTemplateColumns = '1fr';
+            document.body.style.gridTemplateAreas = '"map" "timeline"';
+            
+            // 2. IMPORTANT : Recalculer la taille de la carte pour Leaflet
+            map.invalidateSize(); 
+            
+            // 3. IMPORTANT : Remettre le scroll en haut à gauche pour éviter le décalage
+            window.scrollTo(0, 0);
+
+            // 4. Attente plus longue pour que les cercles se replacent (transition CSS)
+            await new Promise(r => setTimeout(r, 800));
+
+            // 5. Capture avec dimensions explicites
+            html2canvas(document.body, {
+                useCORS: true,
+                allowTaint: false,
+                // On force la capture depuis le point 0,0
+                x: 0,
+                y: 0,
+                scrollX: 0,
+                scrollY: 0,
+                // On force la largeur totale visible
+                width: document.documentElement.clientWidth,
+                height: document.documentElement.clientHeight,
+                windowWidth: document.documentElement.clientWidth,
+                windowHeight: document.documentElement.clientHeight
+            }).then(canvas => {
+                // Restauration
+                sidebar.style.display = prevDisplay;
+                document.body.style.gridTemplateColumns = prevGridCols;
+                document.body.style.gridTemplateAreas = prevGridAreas;
+                map.invalidateSize();
+
+                let link = document.createElement('a');
+                link.download = `Capture_Opera-In-Venice_${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            }).catch(err => {
+                console.error(err);
+                sidebar.style.display = prevDisplay;
+                document.body.style.gridTemplateColumns = prevGridCols;
+                document.body.style.gridTemplateAreas = prevGridAreas;
+                map.invalidateSize();
+                alert("Error capture.");
+            });
+        }
+        // --- FEATURE B LOGIC: Event Listeners ---
+        // AJOUTER CETTE LIGNE : Définition de la variable manquante
+        const histContainer = document.getElementById('histogram');
+        const tooltip = document.getElementById('hist-tooltip');
+
+        if (histContainer) { // Petite sécurité
+            histContainer.addEventListener('mousemove', (e) => {
+                // ... (ton code existant pour le tooltip reste ici) ...
+                const col = e.target.closest('.hist-col');
+                if(col) {
+                    const year = col.getAttribute('data-year');
+                    const countA = col.getAttribute('data-a');
+                    const countB = col.getAttribute('data-b');
+                    const total = col.getAttribute('data-total');
+
+                    let html = `<strong>Année ${year}</strong><br/>Global: ${total} opéras`;
+                    if(state.mode === 'simple' && countA > 0) html += `<br/><span style="color:var(--primary)">• Recherche: ${countA}</span>`;
+                    if(state.mode === 'compare') {
+                        html += `<br/><span style="color:var(--primary)">• A: ${countA}</span>`;
+                        html += `<br/><span style="color:var(--secondary)">• B: ${countB}</span>`;
+                    }
+
+                    tooltip.innerHTML = html;
+                    tooltip.style.opacity = 1;
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY - 40) + 'px';
+                } else {
+                    tooltip.style.opacity = 0;
+                }
+            });
+
+            histContainer.addEventListener('mouseleave', () => {
+                tooltip.style.opacity = 0;
+            });
+        }
+
+        // --- FEATURE C: SCROLLYTELLING DATA & LOGIC ---
+
+        const TOUR_STEPS = [
+            {
+                start: 1637, end: 1645,
+                title: "1637 : L'Aube de l'Opéra Public",
+                text: "Tout commence ici. Avec l'ouverture du Teatro San Cassiano, l'opéra cesse d'être un divertissement de cour exclusif pour devenir un spectacle public payant. Venise devient le laboratoire de l'Europe musicale."
+            },
+            {
+                start: 1650, end: 1660,
+                title: "L'Expansion (1650-1660)",
+                text: "Le succès est foudroyant. De nouveaux théâtres ouvrent (SS. Giovanni e Paolo, San Moisè). La concurrence pousse les librettistes et compositeurs (comme Cavalli) à innover. Observez la multiplication des points sur la carte."
+            },
+            {
+                start: 1680, end: 1700,
+                title: "L'Âge d'Or Vénitien",
+                text: "À la fin du siècle, Venise compte plus de théâtres d'opéra actifs que n'importe quelle autre ville au monde. C'est l'époque du tourisme musical international. La densité au centre de la ville est maximale."
+            },
+            {
+                start: 1740, end: 1750,
+                title: "Le Tournant du Siècle",
+                text: "Le style change, l'Opera Seria s'impose, mais Venise reste une capitale incontournable. Goldoni commence à réformer le livret. La répartition géographique reste dense autour du Grand Canal."
+            }
+        ];
+
+        let currentStepIndex = -1;
+
+        function startTour() {
+            // Reset view
+            if(state.mode === 'compare') toggleMode(); // Force mode simple
+            switchSidebarTab('operas'); // Vue principale
+            resetCurrent(); // Reset filtres
+            
+            currentStepIndex = 0;
+            document.getElementById('tour-overlay').style.display = 'block';
+            applyTourStep();
+        }
+
+        function applyTourStep() {
+            const step = TOUR_STEPS[currentStepIndex];
+            
+            // 1. Mise à jour Slider & Map
+            slider.set([step.start, step.end]);
+            
+            // 2. Mise à jour Texte
+            document.getElementById('tour-title').innerText = step.title;
+            document.getElementById('tour-text').innerText = step.text;
+            
+            // 3. Gestion bouton "Suivant/Fin"
+            const nextBtn = document.querySelector('#tour-overlay .btn-export');
+            if(currentStepIndex === TOUR_STEPS.length - 1) {
+                nextBtn.innerHTML = 'Terminer <i class="fas fa-check"></i>';
+                nextBtn.onclick = endTour;
+            } else {
+                nextBtn.innerHTML = 'Suivant <i class="fas fa-chevron-right"></i>';
+                nextBtn.onclick = nextTourStep;
+            }
+        }
+
+        function nextTourStep() {
+            if(currentStepIndex < TOUR_STEPS.length - 1) {
+                currentStepIndex++;
+                applyTourStep();
+            }
+        }
+
+        function endTour() {
+            document.getElementById('tour-overlay').style.display = 'none';
+            // Remettre le slider sur toute la période ? Ou laisser tel quel ?
+            // slider.set([CONFIG.min, CONFIG.max]); // Optionnel
+        }
+
+        function toggleHeatmap() {
+            const isHeat = document.getElementById('heatmapToggle').checked;
+            state.vizMode = isHeat ? 'heatmap' : 'points';
+            
+            // Si on active la heatmap, on cache les points, sinon on les réaffiche
+            if (state.vizMode === 'points') {
+                if (heatLayer) {
+                    map.removeLayer(heatLayer);
+                    heatLayer = null;
+                }
+                updateDashboard();
+            } else {
+                // Mode Heatmap activé
+                layers.A.clearLayers();
+                layers.B.clearLayers();
+            }
+            markersRef = { A: {}, B: {} };
+            
+            updateDashboard();
+        }
+        function updateHeatmapLayer() {
+            // 1. Récupérer toutes les données actives (A et B si comparaison)
+            let allData = [...state.results.A];
+            if (state.mode === 'compare') {
+                allData = allData.concat(state.results.B);
+            }
+
+            // 2. Agréger par coordonnées pour l'intensité
+            // Leaflet.heat prend des points [lat, lng, intensité]
+            // Intensité = nombre d'opéras dans ce théâtre sur la période
+            let pointsMap = {};
+            let maxCount = 0;
+
+            allData.forEach(f => {
+                // Clé unique basée sur les coordonnées pour grouper les théâtres
+                const key = f.geometry.coordinates.join(',');
+                if (!pointsMap[key]) {
+                    pointsMap[key] = {
+                        lat: f.geometry.coordinates[1],
+                        lng: f.geometry.coordinates[0],
+                        count: 0
+                    };
+                }
+                pointsMap[key].count++;
+                if (pointsMap[key].count > maxCount) maxCount = pointsMap[key].count;
+            });
+
+            // 3. Préparer le tableau pour Leaflet.heat
+            // L'intensité est normalisée entre 0 et 1 (count / maxCount) pour un meilleur rendu visuel
+            const heatPoints = Object.values(pointsMap).map(p => {
+                return [p.lat, p.lng, p.count * 1.5]; // *1.5 pour booster un peu la couleur
+            });
+
+            // 4. Gestion du Layer Leaflet
+            if (heatLayer) {
+                // Mise à jour des données si le layer existe déjà
+                heatLayer.setLatLngs(heatPoints);
+                heatLayer.addTo(map);
+            } else {
+                // Création initiale
+                heatLayer = L.heatLayer(heatPoints, {
+                    radius: 25, // Rayon de la chaleur
+                    blur: 15,   // Flou
+                    maxZoom: 17,
+                    gradient: {0.4: 'blue', 0.65: 'lime', 1: 'red'} // Dégradé de couleur
+                }).addTo(map);
+            }
+        }
+
     </script>
 </body>
 </html>
