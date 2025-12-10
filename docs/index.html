@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <title>Opera Venetia: Comparative Analytics</title>
+    <title>Opera in Venice: Comparative Analytics</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -505,7 +505,7 @@
             <button class="play-btn" onclick="togglePlay()"><i id="play-icon" class="fas fa-play"></i></button>
             
             <button class="snap-btn" onclick="takeScreenshot()" title="Capture d'écran (PNG)"><i class="fas fa-camera"></i></button>
-            <button class="rec-btn" id="rec-btn" onclick="startRecording()" title="Enregistrer Animation (GIF)"><i class="fas fa-video"></i></button>
+            <button class="rec-btn" id="rec-btn" onclick="toggleRecording()" title="Enregistrer Animation (GIF)"><i class="fas fa-video"></i></button>
             
             <div class="date-display" id="date-display">1660 - 1760</div>
             
@@ -609,7 +609,7 @@
         // --- INITIALISATION ---
         document.addEventListener("DOMContentLoaded", () => {
             // 1. Carte
-            map = L.map('map', { zoomControl: false }).setView([45.437, 12.335], 14);
+            map = L.map('map', { zoomControl: false, preferCanvas: true }).setView([45.437, 12.335], 14);
             L.control.zoom({ position: 'topright' }).addTo(map);
             
             // Initialisation du fond de carte (vérifie si le dark mode est actif via la checkbox)
@@ -1305,35 +1305,24 @@
             const prevDisplay = sidebar.style.display;
             const prevGridCols = document.body.style.gridTemplateColumns;
             const prevGridAreas = document.body.style.gridTemplateAreas;
-            
-            // 1. Masquer Sidebar et Ajuster Grille
+
+            // 1. Étendre la carte
             sidebar.style.display = 'none';
             document.body.style.gridTemplateColumns = '1fr';
             document.body.style.gridTemplateAreas = '"map" "timeline"';
-            
-            // 2. IMPORTANT : Recalculer la taille de la carte pour Leaflet
-            map.invalidateSize(); 
-            
-            // 3. IMPORTANT : Remettre le scroll en haut à gauche pour éviter le décalage
-            window.scrollTo(0, 0);
+            window.scrollTo(0,0);
 
-            // 4. Attente plus longue pour que les cercles se replacent (transition CSS)
-            await new Promise(r => setTimeout(r, 800));
+            // 2. Attendre que Leaflet redessine le Canvas (Important)
+            await new Promise(resolve => {
+                map.invalidateSize();
+                // Délai pour laisser le temps au moteur de rendu canvas de se caler
+                setTimeout(resolve, 800); 
+            });
 
-            // 5. Capture avec dimensions explicites
+            // 3. Capture
             html2canvas(document.body, {
                 useCORS: true,
-                allowTaint: false,
-                // On force la capture depuis le point 0,0
-                x: 0,
-                y: 0,
-                scrollX: 0,
-                scrollY: 0,
-                // On force la largeur totale visible
-                width: document.documentElement.clientWidth,
-                height: document.documentElement.clientHeight,
-                windowWidth: document.documentElement.clientWidth,
-                windowHeight: document.documentElement.clientHeight
+                // scale: 2, // Décommentez pour une meilleure résolution
             }).then(canvas => {
                 // Restauration
                 sidebar.style.display = prevDisplay;
@@ -1341,55 +1330,217 @@
                 document.body.style.gridTemplateAreas = prevGridAreas;
                 map.invalidateSize();
 
+                // Téléchargement
                 let link = document.createElement('a');
-                link.download = `Capture_Opera-In-Venice_${new Date().toISOString().slice(0,10)}.png`;
+                link.download = `Capture_Opera_${new Date().toISOString().slice(0,10)}.png`;
                 link.href = canvas.toDataURL("image/png");
                 link.click();
             }).catch(err => {
                 console.error(err);
+                alert("Erreur de capture");
+                // Restauration de secours
                 sidebar.style.display = prevDisplay;
                 document.body.style.gridTemplateColumns = prevGridCols;
                 document.body.style.gridTemplateAreas = prevGridAreas;
                 map.invalidateSize();
-                alert("Error capture.");
             });
         }
         // --- FEATURE B LOGIC: Event Listeners ---
-        // AJOUTER CETTE LIGNE : Définition de la variable manquante
-        const histContainer = document.getElementById('histogram');
-        const tooltip = document.getElementById('hist-tooltip');
+        // Fonction "Interrupteur" qui gère le clic bouton
+        function toggleRecording() {
+            const recBtn = document.getElementById('rec-btn');
+            const statusText = document.getElementById('export-status');
+            const overlay = document.getElementById('export-overlay');
+            const mapDiv = document.getElementById('map');
+            const sliderEl = document.getElementById('time-slider');
 
-        if (histContainer) { // Petite sécurité
-            histContainer.addEventListener('mousemove', (e) => {
-                // ... (ton code existant pour le tooltip reste ici) ...
-                const col = e.target.closest('.hist-col');
-                if(col) {
-                    const year = col.getAttribute('data-year');
-                    const countA = col.getAttribute('data-a');
-                    const countB = col.getAttribute('data-b');
-                    const total = col.getAttribute('data-total');
+            // Cas 1 : ARRÊT DEMANDÉ
+            if (state.isRecording) {
+                state.isRecording = false; 
+                
+                recBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
+                statusText.innerText = "Arrêt demandé... Finition du GIF...";
+                return;
+            }
 
-                    let html = `<strong>Année ${year}</strong><br/>Global: ${total} opéras`;
-                    if(state.mode === 'simple' && countA > 0) html += `<br/><span style="color:var(--primary)">• Recherche: ${countA}</span>`;
-                    if(state.mode === 'compare') {
-                        html += `<br/><span style="color:var(--primary)">• A: ${countA}</span>`;
-                        html += `<br/><span style="color:var(--secondary)">• B: ${countB}</span>`;
+            // Cas 2 : DÉMARRAGE
+            state.isRecording = true;
+            recBtn.innerHTML = '<i class="fas fa-stop"></i>'; 
+            recBtn.classList.add('recording');
+            
+            // --- LE CORRECTIF ROBUSTE ---
+            
+            // 1. On rend l'overlay "fantôme" : on le voit, mais les clics passent au travers
+            overlay.style.pointerEvents = 'none';
+            
+            // 2. On désactive tout ce qui est en dessous, SAUF le bouton
+            mapDiv.style.pointerEvents = 'none';     // Impossible de bouger la carte
+            sliderEl.style.pointerEvents = 'none';   // Impossible de toucher au slider
+            
+            // 3. On s'assure que le bouton reste cliquable (par sécurité)
+            recBtn.style.pointerEvents = 'auto';
+            recBtn.style.position = 'relative'; 
+            recBtn.style.zIndex = '10000'; // Pour qu'il soit visuellement au-dessus du gris
+            
+            // ----------------------------
+            
+            startRecordingProcess();
+        }
+        // La mécanique d'enregistrement (ex-startRecording)
+        function startRecordingProcess() {
+            // 1. Initialisation
+            if (state.isPlaying) togglePlay();
+
+            const overlay = document.getElementById('export-overlay');
+            const statusText = document.getElementById('export-status');
+            
+            // Sauvegardes
+            const mapCenter = map.getCenter();
+            const sidebar = document.getElementById('sidebar');
+            const prevDisplay = sidebar.style.display;
+            const prevGridCols = document.body.style.gridTemplateColumns;
+            const prevGridAreas = document.body.style.gridTemplateAreas;
+
+            overlay.style.display = 'flex'; 
+            statusText.innerText = "Initialisation...";
+
+            const w = document.documentElement.clientWidth;
+            const h = document.documentElement.clientHeight;
+
+            // 2. Configuration du GIF
+            const gif = new GIF({
+                workers: 2,
+                quality: 1, // Haute qualité
+                workerScript: 'gif.worker.js',
+                width: w,
+                height: h,
+                transparent: 'rgba(0,0,0,0)'
+            });
+
+            // 3. Séquence
+            let currentYearStart = state.range[0];
+            const span = state.range[1] - state.range[0];
+            const stepsToRecord = 50;
+            let frameCount = 0;
+
+            // Préparation Carte
+            const prepareMapForCapture = () => {
+                return new Promise(resolve => {
+                    sidebar.style.display = 'none';
+                    document.body.style.gridTemplateColumns = '1fr';
+                    document.body.style.gridTemplateAreas = '"map" "timeline"';
+                    window.scrollTo(0, 0); 
+                    
+                    map.once('resize', () => {
+                        map.panTo(mapCenter, { animate: false });
+                        setTimeout(() => resolve(), 800); 
+                    });
+                    
+                    map.invalidateSize(); 
+                    // Sécurité si l'event resize ne part pas
+                    setTimeout(() => resolve(), 2000); 
+                });
+            };
+
+            const captureFrame = async () => {
+                // --- VÉRIFICATION D'ARRÊT ---
+                // On arrête si : 
+                // 1. Le nombre d'étapes est atteint
+                // 2. La date max est atteinte
+                // 3. OU si l'utilisateur a cliqué sur STOP (state.isRecording est passé à false)
+                if (frameCount >= stepsToRecord || 
+                (currentYearStart + frameCount + span) > CONFIG.max || 
+                !state.isRecording) { // <--- C'est ici que l'arrêt manuel agit
+                    
+                    statusText.innerText = "Génération du GIF... (Ne fermez pas)";
+                    await new Promise(r => setTimeout(r, 100)); 
+                    gif.render();
+                    return;
+                }
+
+                const newStart = currentYearStart + frameCount;
+                slider.set([newStart, newStart + span]);
+                statusText.innerText = `Enregistrement... ${newStart} (Appuyez sur Stop pour finir)`;
+
+                await new Promise(r => setTimeout(r, 150));
+
+                try {
+                    const canvas = await html2canvas(document.body, {
+                        useCORS: true,
+                        preferCanvas: true,
+                        scale: 1, 
+                        width: w,
+                        height: h,
+                        windowWidth: w,
+                        windowHeight: h,
+                        x: 0, y: 0, scrollX: 0, scrollY: 0,
+                        ignoreElements: (element) => element.id === 'export-overlay'
+                    });
+
+                    gif.addFrame(canvas, {delay: 500});
+                    frameCount++;
+                    
+                    // On continue seulement si l'utilisateur n'a pas appuyé sur stop pendant la capture
+                    if(state.isRecording) {
+                        captureFrame();
+                    } else {
+                        // Si l'utilisateur a appuyé sur stop PENDANT html2canvas, on lance le rendu direct
+                        gif.render();
                     }
 
-                    tooltip.innerHTML = html;
-                    tooltip.style.opacity = 1;
-                    tooltip.style.left = (e.clientX + 15) + 'px';
-                    tooltip.style.top = (e.clientY - 40) + 'px';
-                } else {
-                    tooltip.style.opacity = 0;
+                } catch (err) {
+                    console.error(err);
+                    resetUI();
                 }
+            };
+
+            // 4. Fin
+            gif.on('finished', function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `opera_venice_${new Date().toISOString().slice(0,10)}.gif`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                resetUI();
             });
 
-            histContainer.addEventListener('mouseleave', () => {
-                tooltip.style.opacity = 0;
+            function resetUI() {
+                // Restauration layout
+                sidebar.style.display = prevDisplay;
+                document.body.style.gridTemplateColumns = prevGridCols;
+                document.body.style.gridTemplateAreas = prevGridAreas;
+                map.invalidateSize(); 
+                
+                // Reset Bouton
+                const recBtn = document.getElementById('rec-btn');
+                recBtn.classList.remove('recording');
+                recBtn.innerHTML = '<i class="fas fa-video"></i>'; 
+                state.isRecording = false; 
+
+                // Reset Overlay et Slider
+                overlay.style.display = 'none';
+                slider.set([currentYearStart, currentYearStart + span]);
+
+                // --- LE CORRECTIF (On réactive tout) ---
+                const mapDiv = document.getElementById('map');
+                const sliderEl = document.getElementById('time-slider');
+                
+                overlay.style.pointerEvents = '';
+                mapDiv.style.pointerEvents = '';
+                sliderEl.style.pointerEvents = '';
+                
+                recBtn.style.pointerEvents = '';
+                recBtn.style.position = '';
+                recBtn.style.zIndex = '';
+                // ---------------------------------------
+            }
+
+            prepareMapForCapture().then(() => {
+                captureFrame();
             });
         }
-
         // --- FEATURE C: SCROLLYTELLING DATA & LOGIC ---
 
         const TOUR_STEPS = [
