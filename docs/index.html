@@ -620,7 +620,7 @@
             layers.B.addTo(map);
 
             // 2. Chargement Données
-            fetch('sample_operas2.geojson')
+            fetch('database_operas.geojson')
                 .then(r => {
                     if(!r.ok) throw new Error("File not found");
                     return r.json();
@@ -631,7 +631,7 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    alert("Error: sample_operas2.geojson not found. Check your local server.");
+                    alert("Error: database_operas.geojson not found. Check your local server.");
                 });
         });
 
@@ -639,9 +639,9 @@
 
         // --- NOUVELLE LOGIQUE DE CHARGEMENT DES METADONNÉES D'OPÉRA ---
         function loadOperaMetadata() {
-            fetch('sample_operas2.geojson')
+            fetch('database_operas.geojson')
                 .then(response => {
-                    if (!response.ok) throw new Error("sample_operas2.geojson not found or not readable.");
+                    if (!response.ok) throw new Error("database_operas.geojson not found or not readable.");
                     return response.json();
                 })
                 .then(geojson => {
