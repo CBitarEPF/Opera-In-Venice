@@ -12,7 +12,7 @@ Supervisor : Alexander Rusnak
 
 ### Informations
 
-This repository contains the website of the interface for Opera In Venice.
+This repository contains the website of the interface for Opera In Venice<br/>
 The file *Graphics.ipynb* contains all graphs of the Report.
 
 ### Website
