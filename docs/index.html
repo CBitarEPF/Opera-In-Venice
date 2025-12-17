@@ -255,7 +255,7 @@
         #map { grid-area: map; background: var(--bg-map); z-index: 1; }
         /* Animation fluide des cercles */
         .leaflet-interactive { mix-blend-mode: multiply; transition: r 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), fill-opacity 0.3s; }
-        /* En Dark Mode, multiply ne marche pas bien, on utilise screen ou normal */
+        /* En Dark Mode, on privilégie le mode screen ou normal */
         body.dark-mode .leaflet-interactive { mix-blend-mode: screen; }
 
         /* --- 3. TIMELINE --- */
@@ -301,7 +301,7 @@
         .menu-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
         .close-menu { width: 100%; padding: 12px; background: var(--text-main); color: var(--bg-panel); border: none; cursor: pointer; margin-top: 20px; font-weight: bold; text-transform: uppercase; }
 
-        /* Boutons d'export : Style élégant et intégré */
+        /* Boutons d'export */
         .rec-btn, .snap-btn {
             width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); 
             background: transparent; color: var(--text-main);
@@ -342,27 +342,6 @@
             border: 1px solid var(--gold);
             white-space: nowrap;
         }
-
-        /* --- FEATURE C: Visite Guidée (Tour Box) --- */
-        #tour-overlay {
-            position: absolute;
-            bottom: 30px; left: 50%; transform: translateX(-50%);
-            width: 600px; max-width: 90%;
-            background: var(--bg-panel);
-            border-left: 5px solid var(--primary);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            padding: 20px;
-            border-radius: 4px;
-            z-index: 4000; /* Au-dessus de la carte */
-            display: none; /* Caché par défaut */
-            font-family: 'Lato', sans-serif;
-            animation: slideUp 0.4s ease-out;
-        }
-        #tour-overlay h3 { margin: 0 0 10px 0; font-family: 'Playfair Display'; color: var(--primary); }
-        #tour-overlay p { margin: 0 0 20px 0; line-height: 1.5; font-size: 0.95em; color: var(--text-main); }
-        .tour-controls { display: flex; justify-content: flex-end; gap: 10px; }
-
-        @keyframes slideUp { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -493,7 +472,6 @@
 
         <div class="sidebar-footer">
             <button class="btn btn-reset" onclick="resetCurrent()"><i class="fas fa-undo"></i> Reset</button>
-            <button class="btn" style="background: var(--gold); color: white;" onclick="startTour()"><i class="fas fa-route"></i> Visite</button>
             <button class="btn btn-export" onclick="exportData()"><i class="fas fa-file-csv"></i> Export</button>
         </div>
     </div>
@@ -541,10 +519,17 @@
 
             <div style="margin-top:20px; font-size:0.9em; line-height:1.6;">
                 <strong>À propos</strong><br>
-                Ce tableau de bord permet l'exploration spatio-temporelle du répertoire lyrique vénitien.<br>
-                <br>
+                Ce tableau de bord permet l'exploration spatio-temporelle du répertoire lyrique vénitien.<br/>
+                <br/>
+                Le mode Comparaison permet de visualiser simultanément deux sélections. 
+                Les icônes <em>image</em> et <em>vidéo</em> permettent d'exporter une capture (animée) de la visualisation en cours.
+                Les données sélectionnées peuvent être exportées en CSV.<br>
+                <br/>
                 <strong>Data</strong>: Eleanor Selfridge-Field, <em>A New Chronology of Venetian Opera and Related Genres : 1660-1760</em>, Stanford, Stanford University Press, 2007.<br>
-                <strong>Technologies</strong>: Leaflet, NoUiSlider<br>
+                <br/>
+                <strong>Auteurs</strong> : Eliott Bell (database), Christophe Bitar (interface)<br>
+                <br/>
+                <strong>Rapport</strong> : <a href="https://fdh.epfl.ch/index.php/Opera_Regeolocation_in_Venice_(1660-1760)"">Opera Reogeolocation in Venice (1660-1760)</a> 
             </div>
 
             <button class="close-menu" onclick="toggleMenu()">Close</button>
@@ -553,16 +538,6 @@
 
     <!-- Feature B: Tooltip container -->
     <div id="hist-tooltip"></div>
-
-    <!-- Feature C: Boîte de la visite guidée -->
-    <div id="tour-overlay">
-        <h3 id="tour-title">Titre de l'étape</h3>
-        <p id="tour-text">Contenu explicatif...</p>
-        <div class="tour-controls">
-            <button class="btn btn-reset" onclick="endTour()">Quitter</button>
-            <button class="btn btn-export" onclick="nextTourStep()">Suivant <i class="fas fa-chevron-right"></i></button>
-        </div>
-    </div>
 
     <div id="export-overlay" style="display:none;">
             <i class="fas fa-spinner fa-spin fa-3x"></i>
@@ -637,7 +612,7 @@
 
         let OPERA_METADATA = {};
 
-        // --- NOUVELLE LOGIQUE DE CHARGEMENT DES METADONNÉES D'OPÉRA ---
+        // --- CHARGEMENT DES METADONNÉES D'OPÉRA ---
         function loadOperaMetadata() {
             fetch('database_operas.geojson')
                 .then(response => {
@@ -778,8 +753,7 @@
             const activeContent = document.getElementById(`${tabName}-content`);
             if (activeContent) activeContent.classList.add('active');
 
-            // NOUVEAU: Mettre à jour la visibilité de la zone A/B en fonction du mode de comparaison global.
-            // Cela s'applique désormais à TOUS les contenus (opéras, entités, etc.)
+            // Mettre à jour la visibilité de la zone A/B en fonction du mode de comparaison global.
             const tabsContainer = document.querySelector('.tabs-container');
             tabsContainer.style.display = (state.mode === 'compare') ? 'flex' : 'none';
 
@@ -1541,30 +1515,6 @@
                 captureFrame();
             });
         }
-        // --- FEATURE C: SCROLLYTELLING DATA & LOGIC ---
-
-        const TOUR_STEPS = [
-            {
-                start: 1637, end: 1645,
-                title: "1637 : L'Aube de l'Opéra Public",
-                text: "Tout commence ici. Avec l'ouverture du Teatro San Cassiano, l'opéra cesse d'être un divertissement de cour exclusif pour devenir un spectacle public payant. Venise devient le laboratoire de l'Europe musicale."
-            },
-            {
-                start: 1650, end: 1660,
-                title: "L'Expansion (1650-1660)",
-                text: "Le succès est foudroyant. De nouveaux théâtres ouvrent (SS. Giovanni e Paolo, San Moisè). La concurrence pousse les librettistes et compositeurs (comme Cavalli) à innover. Observez la multiplication des points sur la carte."
-            },
-            {
-                start: 1680, end: 1700,
-                title: "L'Âge d'Or Vénitien",
-                text: "À la fin du siècle, Venise compte plus de théâtres d'opéra actifs que n'importe quelle autre ville au monde. C'est l'époque du tourisme musical international. La densité au centre de la ville est maximale."
-            },
-            {
-                start: 1740, end: 1750,
-                title: "Le Tournant du Siècle",
-                text: "Le style change, l'Opera Seria s'impose, mais Venise reste une capitale incontournable. Goldoni commence à réformer le livret. La répartition géographique reste dense autour du Grand Canal."
-            }
-        ];
 
         let currentStepIndex = -1;
 
