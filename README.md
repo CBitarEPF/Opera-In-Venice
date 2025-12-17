@@ -21,5 +21,5 @@ https://cbitarepf.github.io/Opera-In-Venice/
 ### Report
 https://fdh.epfl.ch/index.php/Opera_Regeolocation_in_Venice_(1660-1760)
 
-### GitHub repository
+### GitHub repository (Data extraction)
 https://github.com/Liototo/Projet-Venise
